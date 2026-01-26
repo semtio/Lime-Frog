@@ -174,13 +174,39 @@ def check_images_alt(soup: Optional[BeautifulSoup]) -> List[str]:
     return alts
 
 
-def build_html_structure(soup: Optional[BeautifulSoup]) -> str:
+def build_html_structure(
+    soup: Optional[BeautifulSoup], options: Optional["CheckOptions"] = None
+) -> str:
     if not soup:
         return "нет данных"
+
+    # Определяем какие теги отслеживать на основе настроек
+    tags_to_track = []
+
+    if options is None or options.html_track_headings:
+        tags_to_track.extend(["h1", "h2", "h3", "h4", "h5", "h6"])
+
+    if options is None or options.html_track_paragraphs:
+        tags_to_track.append("p")
+
+    if options is None or options.html_track_semantic:
+        tags_to_track.extend(
+            ["main", "section", "article", "header", "footer", "nav", "aside"]
+        )
+
+    if options and options.html_track_media:
+        tags_to_track.extend(["figure", "figcaption"])
+
+    if options and options.html_track_other:
+        tags_to_track.extend(["address", "time"])
+
+    if not tags_to_track:
+        return "нет выбранных тегов"
+
     sequence: List[str] = []
-    for tag in soup.find_all(["h1", "h2", "h3", "h4", "h5", "h6", "p"]):
+    for tag in soup.find_all(tags_to_track):
         sequence.append(tag.name.upper())
-    return ">".join(sequence) if sequence else "нет заголовков/параграфов"
+    return ">".join(sequence) if sequence else "нет структурных элементов"
 
 
 def find_heading_duplicates(soup: Optional[BeautifulSoup]) -> str:
@@ -326,7 +352,7 @@ async def run_all_checks(
             result[f"Alt-{idx}"] = alt
 
     if check_options.check_html_structure:
-        result["HTML структура"] = build_html_structure(soup)
+        result["HTML структура"] = build_html_structure(soup, check_options)
 
     if check_options.check_heading_duplicates:
         result["Дубли H1/H2/H3"] = find_heading_duplicates(soup)

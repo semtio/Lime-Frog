@@ -73,6 +73,8 @@
     input[type="number"] { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08); background: #0c0e13; color: var(--text); }
     .checks { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin-top: 10px; }
     .check-item { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; background: #0c0e13; border-radius: 10px; border: 1px solid rgba(255,255,255,0.04); }
+    .check-item.html-structure-option { background: rgba(124,77,255,0.08); border-color: rgba(124,77,255,0.15); }
+    .html-structure-title { margin-top: 16px; margin-bottom: 6px; font-size: 13px; color: var(--accent-2); font-weight: 600; }
     .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
     button {
       padding: 12px 16px;
@@ -133,10 +135,23 @@
         </div>
         <div class="checks">
           {% for key, checked in checks.items() %}
+            {% if not key.startswith('html_track_') %}
           <label class="check-item">
             <input type="checkbox" data-option="{{ key }}" {% if checked %}checked{% endif %} />
             <span>{{ labels.get(key, key) }}</span>
           </label>
+            {% endif %}
+          {% endfor %}
+        </div>
+        <div class="html-structure-title">📋 Настройки HTML структуры</div>
+        <div class="checks">
+          {% for key, checked in checks.items() %}
+            {% if key.startswith('html_track_') %}
+          <label class="check-item html-structure-option">
+            <input type="checkbox" data-option="{{ key }}" {% if checked %}checked{% endif %} />
+            <span>{{ labels.get(key, key) }}</span>
+          </label>
+            {% endif %}
           {% endfor %}
         </div>
       </div>
