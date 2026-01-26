@@ -26,8 +26,11 @@ CSV_COLUMNS_BASE = [
     "Robots 200",
     "Robots Disallow",
     "Robots Sitemap",
-    "Страница 404 (URL/код/корректность)",
-    "H1: есть/пустой/уникален",
+    "Ссылка на стр.404",
+    "Код стр.404",
+    "Корректность 404",
+    "Кол-во H1",
+    "H1 пустой",
     "HTML структура",
     "Дубли H1/H2/H3",
 ]
@@ -140,28 +143,34 @@ async def check_robots(
 
 async def check_404(
     base_url: str, client: httpx.AsyncClient, runtime: RuntimeOptions
-) -> str:
+) -> Tuple[str, str, str]:
+    """
+    Проверяет страницу 404.
+    Возвращает кортеж: (URL, код_ответа, корректность)
+    """
     token = secrets.token_hex(5)
     test_url = base_url.rstrip("/") + f"/{token}"
     resp = await fetch_with_retries(client, test_url, runtime)
     if not resp:
-        return "нет ответа"
+        return "нет ответа", "", ""
     is_correct = "да" if resp.status_code == 404 else "нет"
-    return f"{test_url} / код {resp.status_code} / корректно: {is_correct}"
+    return test_url, str(resp.status_code), is_correct
 
 
-def check_h1(soup: Optional[BeautifulSoup]) -> str:
+def check_h1(soup: Optional[BeautifulSoup]) -> Tuple[str, str]:
+    """
+    Проверяет H1 теги.
+    Возвращает кортеж: (количество, пустой_ли)
+    """
     if not soup:
-        return "нет данных"
+        return "нет данных", ""
     h1_tags = soup.find_all("h1")
-    if not h1_tags:
-        return "нет h1"
+    count = len(h1_tags)
+    if count == 0:
+        return "0", "нет"
     texts = [t.get_text(strip=True) for t in h1_tags]
-    empty = any(not t for t in texts)
-    unique = len(h1_tags) == 1
-    return (
-        f"есть; пустой: {'да' if empty else 'нет'}; один: {'да' if unique else 'нет'}"
-    )
+    has_empty = any(not t for t in texts)
+    return str(count), "да" if has_empty else "нет"
 
 
 def check_images_alt(soup: Optional[BeautifulSoup]) -> List[str]:
@@ -340,12 +349,17 @@ async def run_all_checks(
         result.update(robots_result)
 
     if check_options.check_404:
-        result["Страница 404 (URL/код/корректность)"] = await check_404(
+        page_404_url, page_404_code, page_404_correct = await check_404(
             check_url, client, runtime
         )
+        result["Ссылка на стр.404"] = page_404_url
+        result["Код стр.404"] = page_404_code
+        result["Корректность 404"] = page_404_correct
 
     if check_options.check_h1:
-        result["H1: есть/пустой/уникален"] = check_h1(soup)
+        h1_count, h1_empty = check_h1(soup)
+        result["Кол-во H1"] = h1_count
+        result["H1 пустой"] = h1_empty
 
     if check_options.check_images and alts:
         for idx, alt in enumerate(alts, start=1):

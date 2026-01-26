@@ -160,6 +160,7 @@
         <button class="primary" id="start-btn">Старт</button>
         <button class="danger" id="stop-btn" disabled>Стоп</button>
         <button class="secondary" id="download-btn" disabled>Скачать CSV</button>
+        <button class="secondary" id="download-xlsx-btn" disabled>Скачать XLS</button>
       </div>
 
       <div class="status" id="status">Готово к запуску</div>
@@ -174,6 +175,7 @@
     const startBtn = document.getElementById('start-btn');
     const stopBtn = document.getElementById('stop-btn');
     const downloadBtn = document.getElementById('download-btn');
+    const downloadXlsxBtn = document.getElementById('download-xlsx-btn');
     const statusEl = document.getElementById('status');
     const progressFill = document.getElementById('progress-fill');
     const resourceEl = document.getElementById('resource');
@@ -257,6 +259,7 @@
           clearInterval(pollTimer);
           startBtn.disabled = false;
           downloadBtn.disabled = !data.has_results;
+          downloadXlsxBtn.disabled = !data.has_results;
           if (!data.has_results) localStorage.removeItem('seo-job-id');
         }
       };
@@ -275,6 +278,11 @@
       window.location.href = `/api/job/${jobId}/download`;
     }
 
+    async function downloadXlsx() {
+      if (!jobId) return;
+      window.location.href = `/api/job/${jobId}/download-xlsx`;
+    }
+
     async function fetchResource() {
       try {
         const res = await fetch('/api/resource');
@@ -291,6 +299,7 @@
     startBtn.addEventListener('click', startJob);
     stopBtn.addEventListener('click', stopJob);
     downloadBtn.addEventListener('click', downloadCsv);
+    downloadXlsxBtn.addEventListener('click', downloadXlsx);
 
     if (jobId) { pollStatus(); }
     setInterval(fetchResource, 5000);

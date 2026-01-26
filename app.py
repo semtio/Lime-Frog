@@ -12,7 +12,7 @@ from site_checker.config import (
     CheckOptions,
     RuntimeOptions,
 )
-from site_checker.exporters import rows_to_csv_bytes
+from site_checker.exporters import rows_to_csv_bytes, rows_to_xlsx_bytes
 from site_checker.jobs import JobManager
 
 try:
@@ -92,6 +92,22 @@ def create_app() -> Flask:
             download_name=f"seo-check-{job_id}.csv",
             mimetype="text/csv; charset=utf-8",
         )
+
+    @app.get("/api/job/<job_id>/download-xlsx")
+    def download_xlsx(job_id: str):
+        results = job_manager.results(job_id)
+        if results is None:
+            return jsonify({"error": "not found"}), 404
+        try:
+            data = rows_to_xlsx_bytes(results)
+            return send_file(
+                io.BytesIO(data),
+                as_attachment=True,
+                download_name=f"seo-check-{job_id}.xlsx",
+                mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+        except ImportError as e:
+            return jsonify({"error": str(e)}), 500
 
     @app.get("/api/resource")
     def resource_usage():
