@@ -2,29 +2,88 @@
 
 Проверка доменов по SEO-критериям. Результаты в CSV.
 
-## Установка и запуск (Windows)
+## Установка и запуск
 
-### Шаг 1. Установите Python
+### Windows
+
+#### Шаг 1. Установите Python
 Скачайте и установите Python 3.10.12+
 https://www.python.org/downloads/
 
-### Шаг 2. Создайте виртуальное окружение
+#### Шаг 2. Создайте виртуальное окружение
 ```cmd
 python -m venv .venv
 .venv\Scripts\activate
 ```
 
-### Шаг 3. Установите зависимости
+#### Шаг 3. Установите зависимости
 ```cmd
 pip install -r requirements.txt
 ```
 
-### Шаг 4. Запустите приложение
+#### Шаг 4. Запустите приложение
 ```cmd
 python app.py
 ```
 
-### Шаг 5. Откройте в браузере
+#### Шаг 5. Откройте в браузере
+```
+http://127.0.0.1:5000
+```
+
+### Linux
+
+#### Шаг 1. Установите Python и pip
+```bash
+sudo apt-get update
+sudo apt-get install python3.10 python3-pip python3-venv
+```
+
+#### Шаг 2. Создайте виртуальное окружение
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+#### Шаг 3. Установите зависимости
+```bash
+pip install -r requirements.txt
+```
+
+#### Шаг 4. Запустите приложение
+```bash
+python3 app.py
+```
+
+#### Шаг 5. Откройте в браузере
+```
+http://127.0.0.1:5000
+```
+
+### macOS
+
+#### Шаг 1. Установите Python через Homebrew (или скачайте с python.org)
+```bash
+brew install python3
+```
+
+#### Шаг 2. Создайте виртуальное окружение
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+#### Шаг 3. Установите зависимости
+```bash
+pip install -r requirements.txt
+```
+
+#### Шаг 4. Запустите приложение
+```bash
+python3 app.py
+```
+
+#### Шаг 5. Откройте в браузере
 ```
 http://127.0.0.1:5000
 ```
