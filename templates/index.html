@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SEO Checker</title>
+  <style>
+    :root {
+      --bg: #0f1115;
+      --panel: #161a20;
+      --accent: #4dd0e1;
+      --accent-2: #7c4dff;
+      --text: #e6e8ed;
+      --muted: #9aa0aa;
+      --danger: #ff6b6b;
+      --success: #00c853;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: radial-gradient(circle at 10% 20%, rgba(76,110,245,0.15), transparent 25%),
+                  radial-gradient(circle at 80% 0%, rgba(124,77,255,0.15), transparent 25%),
+                  radial-gradient(circle at 50% 80%, rgba(77,208,225,0.08), transparent 25%),
+                  var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px 18px 42px;
+    }
+    header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    h1 { margin: 0; font-size: 22px; letter-spacing: 0.4px; }
+    .muted { color: var(--muted); font-size: 13px; }
+    .panel {
+      background: var(--panel);
+      border: 1px solid rgba(255,255,255,0.04);
+      border-radius: 14px;
+      padding: 18px;
+      margin-top: 16px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+    }
+    textarea {
+      width: 100%;
+      min-height: 180px;
+      background: #0c0e13;
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 12px;
+      resize: vertical;
+      font-family: "JetBrains Mono", "Consolas", monospace;
+    }
+    .flex { display: flex; gap: 12px; flex-wrap: wrap; }
+    label { font-size: 14px; }
+    .settings-toggle {
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--accent);
+      border: none;
+      background: transparent;
+      padding: 4px 0;
+      font-weight: 600;
+    }
+    .settings { display: none; margin-top: 10px; }
+    .settings.open { display: block; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    input[type="number"] { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08); background: #0c0e13; color: var(--text); }
+    .checks { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin-top: 10px; }
+    .check-item { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; background: #0c0e13; border-radius: 10px; border: 1px solid rgba(255,255,255,0.04); }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+    button {
+      padding: 12px 16px;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      font-weight: 700;
+      transition: transform 0.08s ease, box-shadow 0.08s ease, opacity 0.2s ease;
+      color: #0b0d12;
+    }
+    button.primary { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #0b0d12; box-shadow: 0 10px 25px rgba(77,208,225,0.35); }
+    button.secondary { background: #232836; color: var(--text); border: 1px solid rgba(255,255,255,0.05); }
+    button.danger { background: var(--danger); color: #0b0d12; }
+    button:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+    .status { margin-top: 12px; font-size: 14px; color: var(--muted); }
+    .progress-bar { width: 100%; height: 12px; background: #0c0e13; border-radius: 999px; overflow: hidden; border: 1px solid rgba(255,255,255,0.06); }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); width: 0%; transition: width 0.3s ease; }
+    .resource { margin-top: 8px; font-size: 13px; color: var(--muted); }
+    .badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 10px; background: rgba(77,208,225,0.12); color: var(--text); font-size: 12px; }
+    @media (max-width: 640px) {
+      header { flex-direction: column; align-items: flex-start; }
+      .checks { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+      textarea { min-height: 140px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>SEO Checker</h1>
+        <div class="muted">Вставьте домены (по одному в строке), выберите проверки и запустите</div>
+      </div>
+      <div class="badge" id="job-badge" style="display:none;">Задача активна</div>
+    </header>
+
+    <div class="panel">
+      <div class="field">
+        <label for="urls">Список доменов</label>
+        <textarea id="urls" placeholder="example.com\nhttps://example.org"></textarea>
+      </div>
+
+      <button class="settings-toggle" id="toggle-settings">⚙️ Настройки</button>
+      <div class="settings" id="settings">
+        <div class="grid">
+          <div class="field">
+            <label for="concurrency">Количество потоков</label>
+            <input type="number" id="concurrency" min="1" max="10" value="{{ defaults.concurrency }}" />
+          </div>
+          <div class="field">
+            <label for="timeout">Таймаут (сек.)</label>
+            <input type="number" id="timeout" min="3" max="120" value="{{ defaults.timeout_seconds }}" />
+          </div>
+          <div class="field">
+            <label for="retries">Повторы при таймауте</label>
+            <input type="number" id="retries" min="0" max="5" value="{{ defaults.retries }}" />
+          </div>
+        </div>
+        <div class="checks">
+          {% for key, checked in checks.items() %}
+          <label class="check-item">
+            <input type="checkbox" data-option="{{ key }}" {% if checked %}checked{% endif %} />
+            <span>{{ labels.get(key, key) }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="primary" id="start-btn">Старт</button>
+        <button class="danger" id="stop-btn" disabled>Стоп</button>
+        <button class="secondary" id="download-btn" disabled>Скачать CSV</button>
+      </div>
+
+      <div class="status" id="status">Готово к запуску</div>
+      <div class="progress-bar" aria-label="progress">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+      <div class="resource" id="resource" style="display:none;"></div>
+    </div>
+  </div>
+
+  <script>
+    const startBtn = document.getElementById('start-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    const downloadBtn = document.getElementById('download-btn');
+    const statusEl = document.getElementById('status');
+    const progressFill = document.getElementById('progress-fill');
+    const resourceEl = document.getElementById('resource');
+    const badge = document.getElementById('job-badge');
+    const settingsBlock = document.getElementById('settings');
+    const toggleSettings = document.getElementById('toggle-settings');
+
+    let pollTimer = null;
+    let jobId = localStorage.getItem('seo-job-id');
+
+    const setStatus = (text) => statusEl.textContent = text;
+    const setProgress = (completed, total) => {
+      const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+      progressFill.style.width = pct + '%';
+      statusEl.textContent = total ? `Обработано ${completed} из ${total} (${pct}%)` : 'Готово';
+    };
+
+    toggleSettings.addEventListener('click', () => {
+      settingsBlock.classList.toggle('open');
+    });
+
+    async function startJob() {
+      const urls = document.getElementById('urls').value.trim();
+      if (!urls) { setStatus('Добавьте хотя бы один домен'); return; }
+      const options = {};
+      document.querySelectorAll('input[type="checkbox"][data-option]').forEach(cb => {
+        options[cb.dataset.option] = cb.checked;
+      });
+      const payload = {
+        urls,
+        options,
+        runtime: {
+          concurrency: Number(document.getElementById('concurrency').value || 3),
+          timeout_seconds: Number(document.getElementById('timeout').value || 15),
+          retries: Number(document.getElementById('retries').value || 2),
+        }
+      };
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+      downloadBtn.disabled = true;
+      setStatus('Запуск...');
+      try {
+        const res = await fetch('/api/job', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Ошибка запуска');
+        jobId = data.job_id;
+        localStorage.setItem('seo-job-id', jobId);
+        badge.style.display = 'inline-flex';
+        pollStatus();
+      } catch (err) {
+        setStatus(err.message);
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+      }
+    }
+
+    async function pollStatus() {
+      if (!jobId) return;
+      clearInterval(pollTimer);
+      const fetchStatus = async () => {
+        const res = await fetch(`/api/job/${jobId}`);
+        if (res.status === 404) {
+          clearInterval(pollTimer);
+          localStorage.removeItem('seo-job-id');
+          jobId = null;
+          badge.style.display = 'none';
+          setStatus('Задача не найдена');
+          startBtn.disabled = false;
+          stopBtn.disabled = true;
+          downloadBtn.disabled = true;
+          return;
+        }
+        const data = await res.json();
+        const { status, completed, total, error } = data;
+        const pct = total ? Math.round((completed / total) * 100) : 0;
+        progressFill.style.width = pct + '%';
+        setStatus(`Статус: ${status}. Выполнено ${completed}/${total}` + (error ? `, ошибка: ${error}` : ''));
+        badge.style.display = status === 'running' ? 'inline-flex' : 'none';
+        stopBtn.disabled = status !== 'running';
+        if (status === 'completed' || status === 'stopped' || status === 'error') {
+          clearInterval(pollTimer);
+          startBtn.disabled = false;
+          downloadBtn.disabled = !data.has_results;
+          if (!data.has_results) localStorage.removeItem('seo-job-id');
+        }
+      };
+      await fetchStatus();
+      pollTimer = setInterval(fetchStatus, 2000);
+    }
+
+    async function stopJob() {
+      if (!jobId) return;
+      await fetch(`/api/job/${jobId}/stop`, { method: 'POST' });
+      setStatus('Остановка...');
+    }
+
+    async function downloadCsv() {
+      if (!jobId) return;
+      window.location.href = `/api/job/${jobId}/download`;
+    }
+
+    async function fetchResource() {
+      try {
+        const res = await fetch('/api/resource');
+        const data = await res.json();
+        if (data.available) {
+          resourceEl.style.display = 'block';
+          resourceEl.textContent = `CPU: ${data.cpu}% | RAM: ${data.memory_percent}%`;
+        }
+      } catch (e) {
+        /* ignore */
+      }
+    }
+
+    startBtn.addEventListener('click', startJob);
+    stopBtn.addEventListener('click', stopJob);
+    downloadBtn.addEventListener('click', downloadCsv);
+
+    if (jobId) { pollStatus(); }
+    setInterval(fetchResource, 5000);
+  </script>
+</body>
+</html>
