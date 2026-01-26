@@ -33,6 +33,8 @@ CSV_COLUMNS_BASE = [
     "H1 пустой",
     "HTML структура",
     "Дубли H1/H2/H3",
+    "Кол-во img",
+    "Кол-во alt",
 ]
 
 
@@ -173,14 +175,27 @@ def check_h1(soup: Optional[BeautifulSoup]) -> Tuple[str, str]:
     return str(count), "да" if has_empty else "нет"
 
 
-def check_images_alt(soup: Optional[BeautifulSoup]) -> List[str]:
+def check_images_alt(soup: Optional[BeautifulSoup]) -> Tuple[List[str], str, str]:
+    """
+    Проверяет изображения и их alt атрибуты в body.
+    Возвращает кортеж: (список_alt, кол_во_img, кол_во_alt)
+    """
     if not soup or not soup.body:
-        return []
+        return [], "0", "0"
+
     alts: List[str] = []
+    total_img = 0
+    filled_alt = 0
+
     for img in soup.body.find_all("img"):
+        total_img += 1
         alt = img.get("alt")
-        alts.append(alt.strip() if alt else "")
-    return alts
+        alt_text = alt.strip() if alt else ""
+        alts.append(alt_text)
+        if alt_text:  # Считаем только заполненные alt
+            filled_alt += 1
+
+    return alts, str(total_img), str(filled_alt)
 
 
 def build_html_structure(
@@ -301,8 +316,10 @@ async def run_all_checks(
 
     # Собрать все значения
     alts = []
+    img_count = "0"
+    alt_count = "0"
     if check_options.check_images:
-        alts = check_images_alt(soup)
+        alts, img_count, alt_count = check_images_alt(soup)
 
     # Определить максимальное количество альтов для создания колонок
     max_alts = len(alts)
@@ -361,14 +378,17 @@ async def run_all_checks(
         result["Кол-во H1"] = h1_count
         result["H1 пустой"] = h1_empty
 
-    if check_options.check_images and alts:
-        for idx, alt in enumerate(alts, start=1):
-            result[f"Alt-{idx}"] = alt
-
     if check_options.check_html_structure:
         result["HTML структура"] = build_html_structure(soup, check_options)
 
     if check_options.check_heading_duplicates:
         result["Дубли H1/H2/H3"] = find_heading_duplicates(soup)
+
+    if check_options.check_images:
+        result["Кол-во img"] = img_count
+        result["Кол-во alt"] = alt_count
+        if alts:
+            for idx, alt in enumerate(alts, start=1):
+                result[f"Alt-{idx}"] = alt
 
     return result
