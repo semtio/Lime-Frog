@@ -85,11 +85,25 @@ def create_app() -> Flask:
         results = job_manager.results(job_id)
         if results is None:
             return jsonify({"error": "not found"}), 404
+
+        # Получить кастомное имя файла из query параметров
+        custom_filename = request.args.get("filename", "").strip()
+        if custom_filename:
+            # Очистить имя файла от небезопасных символов
+            safe_filename = "".join(
+                c for c in custom_filename if c.isalnum() or c in ("-", "_", " ")
+            )
+            filename = (
+                f"{safe_filename}.csv" if safe_filename else f"seo-check-{job_id}.csv"
+            )
+        else:
+            filename = f"seo-check-{job_id}.csv"
+
         data = rows_to_csv_bytes(results)
         return send_file(
             io.BytesIO(data),
             as_attachment=True,
-            download_name=f"seo-check-{job_id}.csv",
+            download_name=filename,
             mimetype="text/csv; charset=utf-8",
         )
 
@@ -98,12 +112,26 @@ def create_app() -> Flask:
         results = job_manager.results(job_id)
         if results is None:
             return jsonify({"error": "not found"}), 404
+
+        # Получить кастомное имя файла из query параметров
+        custom_filename = request.args.get("filename", "").strip()
+        if custom_filename:
+            # Очистить имя файла от небезопасных символов
+            safe_filename = "".join(
+                c for c in custom_filename if c.isalnum() or c in ("-", "_", " ")
+            )
+            filename = (
+                f"{safe_filename}.xlsx" if safe_filename else f"seo-check-{job_id}.xlsx"
+            )
+        else:
+            filename = f"seo-check-{job_id}.xlsx"
+
         try:
             data = rows_to_xlsx_bytes(results)
             return send_file(
                 io.BytesIO(data),
                 as_attachment=True,
-                download_name=f"seo-check-{job_id}.xlsx",
+                download_name=filename,
                 mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             )
         except ImportError as e:
