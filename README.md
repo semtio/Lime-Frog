@@ -1,64 +1,90 @@
-# SEO Checker v1
+# SEO Checker
 
 Проверка доменов по SEO-критериям. Результаты в CSV.
 
-## Установка и запуск
+---
 
-### Windows
+## Установка и запуск (Windows — Local Dev)
 
-#### Шаг 1. Установите Python
-Скачайте и установите Python 3.10.12+
-https://www.python.org/downloads/
+### Шаг 1. Установите Python
+Скачайте и установите [Python 3.10.12+](https://www.python.org/downloads/)
 
-#### Шаг 2. Создайте виртуальное окружение
+### Шаг 2. Создайте виртуальное окружение
 ```cmd
 python -m venv .venv
 .venv\Scripts\activate
 ```
 
-#### Шаг 3. Установите зависимости
+### Шаг 3. Установите зависимости
 ```cmd
 pip install -r requirements.txt
 ```
 
-#### Шаг 4. Запустите приложение
+### Шаг 4. Запустите приложение
 ```cmd
 python app.py
 ```
 
-#### Шаг 5. Откройте в браузере
+### Шаг 5. Откройте в браузере
 ```
 http://127.0.0.1:5000
 ```
 
-### Linux
+---
 
-#### Шаг 1. Установите Python и pip
+## Установка на сервер (Linux — Production)
+
+### Быстрая установка (один скрипт)
+
 ```bash
-sudo apt-get update
-sudo apt-get install python3.10 python3-pip python3-venv
+# Загрузите проект на сервер и перейдите в папку
+cd /path/to/Lime-Frog
+
+# Сделайте скрипт исполняемым
+chmod +x install.sh
+
+# Запустите установку (требуется sudo)
+sudo ./install.sh
 ```
 
-#### Шаг 2. Создайте виртуальное окружение
+**Скрипт автоматически:**
+- Установит Python, Nginx, UFW
+- Создаст виртуальное окружение и установит зависимости
+- Настроит Gunicorn (bind на 127.0.0.1:8000)
+- Настроит Nginx как reverse proxy (порт 80)
+- Откроет порты 22, 80, 443 в UFW
+- Создаст systemd сервис для автозапуска
+- Запустит приложение
+
+После установки приложение будет доступно по IP сервера:
+```
+http://your-server-ip
+```
+
+### Управление сервисом
+
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
+# Статус
+sudo systemctl status seo-checker
+
+# Перезапуск
+sudo systemctl restart seo-checker
+
+# Остановка
+sudo systemctl stop seo-checker
+
+# Просмотр логов
+sudo journalctl -u seo-checker -f
 ```
 
-#### Шаг 3. Установите зависимости
+### Логи Nginx
+
 ```bash
-pip install -r requirements.txt
+tail -f /var/log/nginx/access.log
+tail -f /var/log/nginx/error.log
 ```
 
-#### Шаг 4. Запустите приложение
-```bash
-python3 app.py
-```
-
-#### Шаг 5. Откройте в браузере
-```
-http://127.0.0.1:5000
-```
+---
 
 ### macOS
 
