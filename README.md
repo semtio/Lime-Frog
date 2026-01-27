@@ -1,4 +1,4 @@
-# SEO Checker
+# SEO Checker v1
 
 Проверка доменов по SEO-критериям. Результаты в CSV.
 
