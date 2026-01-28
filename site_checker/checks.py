@@ -15,6 +15,7 @@ CSV_COLUMNS_BASE = [
     "URL",
     "Код ответа",
     "Редирект",
+    "Язык сайта",
     "Noindex",
     "Nofollow",
     "Canonical",
@@ -92,6 +93,16 @@ def extract_canonical(soup: Optional[BeautifulSoup]) -> str:
         return ""
     tag = soup.find("link", rel=lambda v: v and "canonical" in v)
     return (tag.get("href") or "").strip() if tag else ""
+
+
+def extract_html_lang(soup: Optional[BeautifulSoup]) -> str:
+    """Извлекает значение атрибута lang из тега <html>"""
+    if not soup:
+        return ""
+    html_tag = soup.find("html")
+    if html_tag and html_tag.has_attr("lang"):
+        return html_tag["lang"].strip()
+    return ""
 
 
 def extract_title(soup: Optional[BeautifulSoup]) -> Tuple[str, int]:
@@ -336,6 +347,9 @@ async def run_all_checks(
         if is_redirect:
             redirect_url = response_no_follow.headers.get("location", "")
             result["Редирект"] = redirect_url
+
+    if check_options.check_html_lang:
+        result["Язык сайта"] = extract_html_lang(soup)
 
     if check_options.check_indexability:
         noindex, nofollow = parse_robots_meta(response, soup)

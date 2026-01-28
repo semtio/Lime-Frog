@@ -6,6 +6,7 @@ from typing import Dict
 class CheckOptions:
     check_status_codes: bool = True
     check_redirects: bool = True
+    check_html_lang: bool = True
     check_indexability: bool = True
     check_titles: bool = True
     check_sitemap: bool = True
@@ -40,6 +41,7 @@ class RuntimeOptions:
 CHECK_LABELS = {
     "check_status_codes": "Коды ответов",
     "check_redirects": "Редиректы",
+    "check_html_lang": "Язык сайта (HTML lang)",
     "check_indexability": "Indexability (noindex/nofollow, canonical)",
     "check_titles": "Title / Description",
     "check_sitemap": "Sitemap.xml",
