@@ -7,7 +7,7 @@
   <title>SEO Checker</title>
   <style>
     :root {
-      --bg: #0f1115;
+      --bg: #0f150f;
       --panel: #161a20;
       --accent: #4dd0e1;
       --accent-2: #7c4dff;
@@ -113,6 +113,11 @@
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
       gap: 10px;
+      padding: 14px;
+      border: 1px solid rgba(77, 208, 225, 0.12);
+      border-radius: 10px;
+      background: rgba(77, 208, 225, 0.03);
+      margin-bottom: 16px;
     }
 
     .field {
@@ -135,7 +140,7 @@
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       gap: 8px;
-      margin-top: 10px;
+      margin-top: 12px;
     }
 
     .check-item {
@@ -151,6 +156,82 @@
     .check-item.html-structure-option {
       background: rgba(124, 77, 255, 0.08);
       border-color: rgba(124, 77, 255, 0.15);
+    }
+
+    .checks-section {
+      padding: 14px;
+      border: 1px solid rgba(77, 208, 225, 0.12);
+      border-radius: 10px;
+      background: rgba(77, 208, 225, 0.03);
+      margin-bottom: 16px;
+    }
+
+    .checks-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      gap: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(77, 208, 225, 0.08);
+    }
+
+    .checks-header span {
+      font-size: 13px;
+      color: var(--accent-2);
+      font-weight: 600;
+    }
+
+    .checks-buttons {
+      display: flex;
+      gap: 6px;
+    }
+
+    .check-all-btn,
+    .uncheck-all-btn {
+      padding: 5px 10px;
+      font-size: 11px;
+      background: rgba(77, 208, 225, 0.15);
+      color: var(--accent);
+      border: 1px solid rgba(77, 208, 225, 0.3);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-weight: 500;
+    }
+
+    .check-all-btn:hover,
+    .uncheck-all-btn:hover {
+      background: rgba(77, 208, 225, 0.25);
+      border-color: rgba(77, 208, 225, 0.5);
+    }
+
+    .toggle-all-btn {
+      padding: 5px 10px;
+      font-size: 11px;
+      background: rgba(77, 208, 225, 0.15);
+      color: var(--accent);
+      border: 1px solid rgba(77, 208, 225, 0.3);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-weight: 500;
+    }
+
+    .toggle-all-btn:hover {
+      background: rgba(77, 208, 225, 0.25);
+      border-color: rgba(77, 208, 225, 0.5);
+    }
+
+    .toggle-all-btn.all-checked {
+      background: rgba(0, 200, 83, 0.15);
+      color: var(--success);
+      border-color: rgba(0, 200, 83, 0.3);
+    }
+
+    .toggle-all-btn.all-checked:hover {
+      background: rgba(0, 200, 83, 0.25);
+      border-color: rgba(0, 200, 83, 0.5);
     }
 
     .html-structure-title {
@@ -261,7 +342,7 @@
   <div class="container">
     <header>
       <div>
-        <h1>SEO Checker from </h1>
+        <h1>SEO Checker</h1>
         Author:<a href="https://t.me/semtio" target="_blank"
           style="color: var(--accent); text-decoration: none; margin-left: 8px;">@semtio</a>
         <div class="muted">Вставьте домены (по одному в строке), выберите проверки и запустите</div>
@@ -274,6 +355,20 @@
         <label for="urls">Список доменов</label>
         <textarea id="urls" placeholder="example.com\nhttps://example.org"></textarea>
       </div>
+
+      <div class="actions">
+        <button class="primary" id="start-btn">Старт</button>
+        <button class="danger" id="stop-btn" disabled>Стоп</button>
+        <button class="secondary" id="download-btn" disabled>Скачать CSV</button>
+        <button class="secondary" id="download-xlsx-btn" disabled>Скачать XLS</button>
+        <button class="secondary" id="clear-btn" title="Очистить сохранённые данные">🗑️ Очистить</button>
+      </div>
+
+      <div class="status" id="status">Готово к запуску</div>
+      <div class="progress-bar" aria-label="progress">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+      <div class="resource" id="resource" style="display:none;"></div>
 
       <button class="settings-toggle" id="toggle-settings">⚙️ Настройки</button>
       <div class="settings" id="settings">
@@ -295,42 +390,60 @@
             <input type="text" id="filename" placeholder="seo-check" maxlength="100" />
           </div>
         </div>
-        <div class="checks">
-          {% for key, checked in checks.items() %}
-          {% if not key.startswith('html_track_') %}
-          <label class="check-item">
-            <input type="checkbox" data-option="{{ key }}" {% if checked %}checked{% endif %} />
-            <span>{{ labels.get(key, key) }}</span>
-          </label>
-          {% endif %}
-          {% endfor %}
+        <div class="checks-section">
+          <div class="checks-header">
+            <span>⚙️ Настройки проверок</span>
+            <div class="checks-buttons">
+              <button type="button" class="toggle-all-btn" data-group="main-checks">Выбрать всё</button>
+            </div>
+          </div>
+          <div class="checks main-checks">
+            {% for key, checked in checks.items() %}
+            {% if not key.startswith('html_track_') and not key.startswith('collect_') %}
+            <label class="check-item">
+              <input type="checkbox" data-option="{{ key }}" {% if checked %}checked{% endif %} />
+              <span>{{ labels.get(key, key) }}</span>
+            </label>
+            {% endif %}
+            {% endfor %}
+          </div>
         </div>
-        <div class="html-structure-title">📋 Настройки HTML структуры</div>
-        <div class="checks">
-          {% for key, checked in checks.items() %}
-          {% if key.startswith('html_track_') %}
-          <label class="check-item html-structure-option">
-            <input type="checkbox" data-option="{{ key }}" {% if checked %}checked{% endif %} />
-            <span>{{ labels.get(key, key) }}</span>
-          </label>
-          {% endif %}
-          {% endfor %}
+        <div class="checks-section">
+          <div class="checks-header">
+            <span>📊 Сбор заголовков</span>
+            <div class="checks-buttons">
+              <button type="button" class="toggle-all-btn" data-group="heading-checks">Выбрать всё</button>
+            </div>
+          </div>
+          <div class="checks heading-checks">
+            {% for key, checked in checks.items() %}
+            {% if key.startswith('collect_') %}
+            <label class="check-item html-structure-option">
+              <input type="checkbox" data-option="{{ key }}" {% if checked %}checked{% endif %} />
+              <span>{{ labels.get(key, key) }}</span>
+            </label>
+            {% endif %}
+            {% endfor %}
+          </div>
         </div>
+        <div class="checks-section">
+          <div class="checks-header">
+            <span>📋 Настройки HTML структуры</span>
+            <div class="checks-buttons">
+              <button type="button" class="toggle-all-btn" data-group="html-checks">Выбрать всё</button>
+            </div>
+          </div>
+          <div class="checks html-checks">
+            {% for key, checked in checks.items() %}
+            {% if key.startswith('html_track_') %}
+            <label class="check-item html-structure-option">
+              <input type="checkbox" data-option="{{ key }}" {% if checked %}checked{% endif %} />
+              <span>{{ labels.get(key, key) }}</span>
+            </label>
+            {% endif %}
+            {% endfor %}
+          </div>
       </div>
-
-      <div class="actions">
-        <button class="primary" id="start-btn">Старт</button>
-        <button class="danger" id="stop-btn" disabled>Стоп</button>
-        <button class="secondary" id="download-btn" disabled>Скачать CSV</button>
-        <button class="secondary" id="download-xlsx-btn" disabled>Скачать XLS</button>
-        <button class="secondary" id="clear-btn" title="Очистить сохранённые данные">🗑️ Очистить</button>
-      </div>
-
-      <div class="status" id="status">Готово к запуску</div>
-      <div class="progress-bar" aria-label="progress">
-        <div class="progress-fill" id="progress-fill"></div>
-      </div>
-      <div class="resource" id="resource" style="display:none;"></div>
     </div>
   </div>
 
@@ -432,6 +545,7 @@
 
     // ========== Инициализация ==========
     loadAllData();
+    updateToggleButtons();
 
     const setStatus = (text) => statusEl.textContent = text;
     const setProgress = (completed, total) => {
@@ -442,6 +556,54 @@
 
     toggleSettings.addEventListener('click', () => {
       settingsBlock.classList.toggle('open');
+    });
+
+    // ========== Функция для обновления состояния кнопок переключения ==========
+    function updateToggleButtons() {
+      document.querySelectorAll('.toggle-all-btn').forEach(btn => {
+        const groupClass = btn.dataset.group;
+        const section = btn.closest('.checks-section').querySelector(`.${groupClass}`);
+        const checkboxes = section.querySelectorAll('input[type="checkbox"]');
+        const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+        const totalCount = checkboxes.length;
+
+        // Если все выбраны - показываем "Убрать всё"
+        if (checkedCount === totalCount) {
+          btn.textContent = 'Убрать всё';
+          btn.classList.add('all-checked');
+        } else {
+          btn.textContent = 'Выбрать всё';
+          btn.classList.remove('all-checked');
+        }
+      });
+    }
+
+    // ========== Обработчики для переключающейся кнопки ==========
+    document.querySelectorAll('.toggle-all-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const groupClass = btn.dataset.group;
+        const section = btn.closest('.checks-section').querySelector(`.${groupClass}`);
+        const checkboxes = section.querySelectorAll('input[type="checkbox"]');
+        const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+        const totalCount = checkboxes.length;
+
+        // Если все выбраны - убираем все, иначе выбираем все
+        const shouldCheck = checkedCount !== totalCount;
+        checkboxes.forEach(cb => {
+          cb.checked = shouldCheck;
+        });
+
+        saveAllData();
+        updateToggleButtons();
+      });
+    });
+
+    // Расподчик на изменение чекбоксов для обновления кнопок
+    document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+      checkbox.addEventListener('change', () => {
+        updateToggleButtons();
+      });
     });
 
     async function startJob() {

@@ -31,7 +31,12 @@ CSV_COLUMNS_BASE = [
     "Код стр.404",
     "Корректность 404",
     "Кол-во H1",
-    "H1 пустой",
+    "H1",
+    "H2",
+    "H3",
+    "H4",
+    "H5",
+    "H6",
     "HTML структура",
     "Дубли H1/H2/H3",
     "Кол-во img",
@@ -184,6 +189,43 @@ def check_h1(soup: Optional[BeautifulSoup]) -> Tuple[str, str]:
     texts = [t.get_text(strip=True) for t in h1_tags]
     has_empty = any(not t for t in texts)
     return str(count), "да" if has_empty else "нет"
+
+
+def collect_headings(
+    soup: Optional[BeautifulSoup], check_options: CheckOptions
+) -> Dict[str, str]:
+    """
+    Собирает содержимое заголовков H1-H6 в зависимости от настроек.
+    Возвращает словарь с ключами H1-H6, значения - текст заголовков через =>
+    """
+    result = {}
+    heading_map = {
+        "H1": ("h1", check_options.collect_h1),
+        "H2": ("h2", check_options.collect_h2),
+        "H3": ("h3", check_options.collect_h3),
+        "H4": ("h4", check_options.collect_h4),
+        "H5": ("h5", check_options.collect_h5),
+        "H6": ("h6", check_options.collect_h6),
+    }
+
+    if not soup:
+        for key in heading_map.keys():
+            result[key] = ""
+        return result
+
+    for key, (tag, enabled) in heading_map.items():
+        if not enabled:
+            result[key] = ""
+            continue
+
+        tags = soup.find_all(tag)
+        if not tags:
+            result[key] = ""
+        else:
+            texts = [t.get_text(strip=True) for t in tags if t.get_text(strip=True)]
+            result[key] = " => ".join(texts) if texts else ""
+
+    return result
 
 
 def check_images_alt(soup: Optional[BeautifulSoup]) -> Tuple[List[str], str, str]:
@@ -390,7 +432,11 @@ async def run_all_checks(
     if check_options.check_h1:
         h1_count, h1_empty = check_h1(soup)
         result["Кол-во H1"] = h1_count
-        result["H1 пустой"] = h1_empty
+
+    # Сбор содержимого заголовков H1-H6
+    headings = collect_headings(soup, check_options)
+    for heading_key, heading_text in headings.items():
+        result[heading_key] = heading_text
 
     if check_options.check_html_structure:
         result["HTML структура"] = build_html_structure(soup, check_options)

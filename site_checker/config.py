@@ -18,6 +18,14 @@ class CheckOptions:
     check_heading_duplicates: bool = True
     follow_redirects_for_checks: bool = False  # По умолчанию НЕ проверяем конечные URL
 
+    # Сбор заголовков H1-H6
+    collect_h1: bool = True
+    collect_h2: bool = True
+    collect_h3: bool = True
+    collect_h4: bool = True
+    collect_h5: bool = True
+    collect_h6: bool = True
+
     # Настройки HTML структуры: какие теги отслеживать
     html_track_headings: bool = True  # H1-H6
     html_track_paragraphs: bool = True  # P
@@ -52,6 +60,13 @@ CHECK_LABELS = {
     "check_html_structure": "HTML структура (Hn, P)",
     "check_heading_duplicates": "Дубли H1/H2/H3",
     "follow_redirects_for_checks": "Проверять конечные URL после редиректов",
+    # Сбор заголовков
+    "collect_h1": "H1",
+    "collect_h2": "H2",
+    "collect_h3": "H3",
+    "collect_h4": "H4",
+    "collect_h5": "H5",
+    "collect_h6": "H6",
     # Настройки HTML структуры
     "html_track_headings": "Заголовки (H1-H6)",
     "html_track_paragraphs": "Параграфы (P)",
