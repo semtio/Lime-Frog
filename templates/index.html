@@ -187,6 +187,12 @@
       gap: 6px;
     }
 
+    .checks-footer {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 12px;
+    }
+
     .check-all-btn,
     .uncheck-all-btn {
       padding: 5px 10px;
@@ -232,6 +238,23 @@
     .toggle-all-btn.all-checked:hover {
       background: rgba(0, 200, 83, 0.25);
       border-color: rgba(0, 200, 83, 0.5);
+    }
+
+    .heading-download-btn {
+      padding: 6px 12px;
+      font-size: 11px;
+      background: rgba(124, 77, 255, 0.12);
+      color: var(--accent-2);
+      border: 1px solid rgba(124, 77, 255, 0.35);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-weight: 600;
+    }
+
+    .heading-download-btn:hover {
+      background: rgba(124, 77, 255, 0.2);
+      border-color: rgba(124, 77, 255, 0.5);
     }
 
     .html-structure-title {
@@ -425,6 +448,9 @@
             {% endif %}
             {% endfor %}
           </div>
+          <div class="checks-footer">
+            <button type="button" class="heading-download-btn" id="heading-download-btn" disabled>Скачать XLS</button>
+          </div>
         </div>
         <div class="checks-section">
           <div class="checks-header">
@@ -452,6 +478,7 @@
     const stopBtn = document.getElementById('stop-btn');
     const downloadBtn = document.getElementById('download-btn');
     const downloadXlsxBtn = document.getElementById('download-xlsx-btn');
+    const headingDownloadBtn = document.getElementById('heading-download-btn');
     const clearBtn = document.getElementById('clear-btn');
     const statusEl = document.getElementById('status');
     const progressFill = document.getElementById('progress-fill');
@@ -671,6 +698,7 @@
           startBtn.disabled = false;
           downloadBtn.disabled = !data.has_results;
           downloadXlsxBtn.disabled = !data.has_results;
+          if (headingDownloadBtn) headingDownloadBtn.disabled = !data.has_results;
           if (!data.has_results) localStorage.removeItem('seo-job-id');
         }
       };
@@ -702,6 +730,31 @@
       window.location.href = url;
     }
 
+    async function downloadHeadingsXlsx() {
+      if (!jobId) return;
+      const customName = document.getElementById('filename').value.trim();
+
+      // Получить выбранные заголовки
+      const headingCheckboxes = document.querySelectorAll('input[data-option^="collect_h"]');
+      const enabledHeadings = [];
+      headingCheckboxes.forEach(cb => {
+        if (cb.checked) {
+          const hTag = cb.dataset.option.replace('collect_', '').toUpperCase();
+          enabledHeadings.push(hTag);
+        }
+      });
+
+      let url = `/api/job/${jobId}/download-headings-xlsx`;
+      const params = new URLSearchParams();
+      if (customName) params.append('filename', customName);
+      if (enabledHeadings.length > 0) params.append('headings', enabledHeadings.join(','));
+
+      if (params.toString()) {
+        url += '?' + params.toString();
+      }
+      window.location.href = url;
+    }
+
     async function fetchResource() {
       try {
         const res = await fetch('/api/resource');
@@ -719,6 +772,7 @@
     stopBtn.addEventListener('click', stopJob);
     downloadBtn.addEventListener('click', downloadCsv);
     downloadXlsxBtn.addEventListener('click', downloadXlsx);
+    if (headingDownloadBtn) headingDownloadBtn.addEventListener('click', downloadHeadingsXlsx);
     clearBtn.addEventListener('click', clearAllData);
 
     // Сохранять данные при изменении

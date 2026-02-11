@@ -12,7 +12,11 @@ from site_checker.config import (
     CheckOptions,
     RuntimeOptions,
 )
-from site_checker.exporters import rows_to_csv_bytes, rows_to_xlsx_bytes
+from site_checker.exporters import (
+    rows_to_csv_bytes,
+    rows_to_headings_xlsx_bytes,
+    rows_to_xlsx_bytes,
+)
 from site_checker.jobs import JobManager
 
 try:
@@ -128,6 +132,46 @@ def create_app() -> Flask:
 
         try:
             data = rows_to_xlsx_bytes(results)
+            return send_file(
+                io.BytesIO(data),
+                as_attachment=True,
+                download_name=filename,
+                mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+        except ImportError as e:
+            return jsonify({"error": str(e)}), 500
+
+    @app.get("/api/job/<job_id>/download-headings-xlsx")
+    def download_headings_xlsx(job_id: str):
+        results = job_manager.results(job_id)
+        if results is None:
+            return jsonify({"error": "not found"}), 404
+
+        custom_filename = request.args.get("filename", "").strip()
+        if custom_filename:
+            safe_filename = "".join(
+                c for c in custom_filename if c.isalnum() or c in ("-", "_", " ")
+            )
+            filename = (
+                f"{safe_filename}-headings.xlsx"
+                if safe_filename
+                else f"seo-headings-{job_id}.xlsx"
+            )
+        else:
+            filename = f"seo-headings-{job_id}.xlsx"
+
+        # Получить список выбранных заголовков из query параметров
+        enabled_headings_str = request.args.get("headings", "").strip()
+        enabled_headings = None
+        if enabled_headings_str:
+            enabled_headings = [
+                h.strip().upper() for h in enabled_headings_str.split(",")
+            ]
+
+        try:
+            data = rows_to_headings_xlsx_bytes(
+                results, enabled_headings=enabled_headings
+            )
             return send_file(
                 io.BytesIO(data),
                 as_attachment=True,
