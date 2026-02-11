@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="ru">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -15,46 +16,78 @@
       --danger: #ff6b6b;
       --success: #00c853;
     }
-    * { box-sizing: border-box; }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
       font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
-      background: radial-gradient(circle at 10% 20%, rgba(76,110,245,0.15), transparent 25%),
-                  radial-gradient(circle at 80% 0%, rgba(124,77,255,0.15), transparent 25%),
-                  radial-gradient(circle at 50% 80%, rgba(77,208,225,0.08), transparent 25%),
-                  var(--bg);
+      background: radial-gradient(circle at 10% 20%, rgba(76, 110, 245, 0.15), transparent 25%),
+        radial-gradient(circle at 80% 0%, rgba(124, 77, 255, 0.15), transparent 25%),
+        radial-gradient(circle at 50% 80%, rgba(77, 208, 225, 0.08), transparent 25%),
+        var(--bg);
       color: var(--text);
       min-height: 100vh;
     }
+
     .container {
       max-width: 1100px;
       margin: 0 auto;
       padding: 24px 18px 42px;
     }
-    header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-    h1 { margin: 0; font-size: 22px; letter-spacing: 0.4px; }
-    .muted { color: var(--muted); font-size: 13px; }
+
+    header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 22px;
+      letter-spacing: 0.4px;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
     .panel {
       background: var(--panel);
-      border: 1px solid rgba(255,255,255,0.04);
+      border: 1px solid rgba(255, 255, 255, 0.04);
       border-radius: 14px;
       padding: 18px;
       margin-top: 16px;
-      box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
     }
+
     textarea {
       width: 100%;
       min-height: 180px;
       background: #0c0e13;
       color: var(--text);
-      border: 1px solid rgba(255,255,255,0.08);
+      border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 12px;
       padding: 12px;
       resize: vertical;
       font-family: "JetBrains Mono", "Consolas", monospace;
     }
-    .flex { display: flex; gap: 12px; flex-wrap: wrap; }
-    label { font-size: 14px; }
+
+    .flex {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    label {
+      font-size: 14px;
+    }
+
     .settings-toggle {
       cursor: pointer;
       display: inline-flex;
@@ -66,16 +99,75 @@
       padding: 4px 0;
       font-weight: 600;
     }
-    .settings { display: none; margin-top: 10px; }
-    .settings.open { display: block; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
-    .field { display: flex; flex-direction: column; gap: 6px; }
-    input[type="number"], input[type="text"] { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08); background: #0c0e13; color: var(--text); }
-    .checks { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin-top: 10px; }
-    .check-item { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; background: #0c0e13; border-radius: 10px; border: 1px solid rgba(255,255,255,0.04); }
-    .check-item.html-structure-option { background: rgba(124,77,255,0.08); border-color: rgba(124,77,255,0.15); }
-    .html-structure-title { margin-top: 16px; margin-bottom: 6px; font-size: 13px; color: var(--accent-2); font-weight: 600; }
-    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+
+    .settings {
+      display: none;
+      margin-top: 10px;
+    }
+
+    .settings.open {
+      display: block;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 10px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    input[type="number"],
+    input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: #0c0e13;
+      color: var(--text);
+    }
+
+    .checks {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .check-item {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      padding: 8px 10px;
+      background: #0c0e13;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .check-item.html-structure-option {
+      background: rgba(124, 77, 255, 0.08);
+      border-color: rgba(124, 77, 255, 0.15);
+    }
+
+    .html-structure-title {
+      margin-top: 16px;
+      margin-bottom: 6px;
+      font-size: 13px;
+      color: var(--accent-2);
+      font-weight: 600;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
     button {
       padding: 12px 16px;
       border-radius: 12px;
@@ -85,29 +177,93 @@
       transition: transform 0.08s ease, box-shadow 0.08s ease, opacity 0.2s ease;
       color: #0b0d12;
     }
-    button.primary { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #0b0d12; box-shadow: 0 10px 25px rgba(77,208,225,0.35); }
-    button.secondary { background: #232836; color: var(--text); border: 1px solid rgba(255,255,255,0.05); }
-    button.danger { background: var(--danger); color: #0b0d12; }
-    button:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
-    .status { margin-top: 12px; font-size: 14px; color: var(--muted); }
-    .progress-bar { width: 100%; height: 12px; background: #0c0e13; border-radius: 999px; overflow: hidden; border: 1px solid rgba(255,255,255,0.06); }
-    .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); width: 0%; transition: width 0.3s ease; }
-    .resource { margin-top: 8px; font-size: 13px; color: var(--muted); }
-    .badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 10px; background: rgba(77,208,225,0.12); color: var(--text); font-size: 12px; }
+
+    button.primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #0b0d12;
+      box-shadow: 0 10px 25px rgba(77, 208, 225, 0.35);
+    }
+
+    button.secondary {
+      background: #232836;
+      color: var(--text);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    button.danger {
+      background: var(--danger);
+      color: #0b0d12;
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .status {
+      margin-top: 12px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 12px;
+      background: #0c0e13;
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    .resource {
+      margin-top: 8px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 10px;
+      background: rgba(77, 208, 225, 0.12);
+      color: var(--text);
+      font-size: 12px;
+    }
+
     @media (max-width: 640px) {
-      header { flex-direction: column; align-items: flex-start; }
-      .checks { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
-      textarea { min-height: 140px; }
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .checks {
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      }
+
+      textarea {
+        min-height: 140px;
+      }
     }
   </style>
 </head>
+
 <body>
   <div class="container">
     <header>
       <div>
         <h1>SEO Checker from </h1>
-       создай ссылку на тг
-        <a href="https://t.me/semtio" target="_blank" style="color: var(--accent); text-decoration: none; margin-left: 8px;">@channel</a>
+        Author:<a href="https://t.me/semtio" target="_blank"
+          style="color: var(--accent); text-decoration: none; margin-left: 8px;">@channel</a>
         <div class="muted">Вставьте домены (по одному в строке), выберите проверки и запустите</div>
       </div>
       <div class="badge" id="job-badge" style="display:none;">Задача активна</div>
@@ -141,23 +297,23 @@
         </div>
         <div class="checks">
           {% for key, checked in checks.items() %}
-            {% if not key.startswith('html_track_') %}
+          {% if not key.startswith('html_track_') %}
           <label class="check-item">
             <input type="checkbox" data-option="{{ key }}" {% if checked %}checked{% endif %} />
             <span>{{ labels.get(key, key) }}</span>
           </label>
-            {% endif %}
+          {% endif %}
           {% endfor %}
         </div>
         <div class="html-structure-title">📋 Настройки HTML структуры</div>
         <div class="checks">
           {% for key, checked in checks.items() %}
-            {% if key.startswith('html_track_') %}
+          {% if key.startswith('html_track_') %}
           <label class="check-item html-structure-option">
             <input type="checkbox" data-option="{{ key }}" {% if checked %}checked{% endif %} />
             <span>{{ labels.get(key, key) }}</span>
           </label>
-            {% endif %}
+          {% endif %}
           {% endfor %}
         </div>
       </div>
@@ -417,4 +573,5 @@
     setInterval(fetchResource, 5000);
   </script>
 </body>
+
 </html>
