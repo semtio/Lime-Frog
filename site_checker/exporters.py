@@ -69,7 +69,9 @@ def rows_to_xlsx_bytes(rows: Iterable[dict]) -> bytes:
         start_color="4472C4", end_color="4472C4", fill_type="solid"
     )
     header_font = Font(bold=True, color="FFFFFF")
-    header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    header_alignment = Alignment(
+        horizontal="center", vertical="center", wrap_text=False
+    )
 
     # Добавляем заголовки
     for col_idx, fieldname in enumerate(fieldnames, start=1):
@@ -85,11 +87,11 @@ def rows_to_xlsx_bytes(rows: Iterable[dict]) -> bytes:
             value = row_data.get(fieldname, "")
             cell = ws.cell(row=row_idx, column=col_idx, value=value)
             cell.alignment = Alignment(
-                horizontal="left", vertical="top", wrap_text=True
+                horizontal="left", vertical="center", wrap_text=False
             )
 
-    # Закрепляем заголовок
-    ws.freeze_panes = "A2"
+    # Закрепляем заголовок и первый столбец
+    ws.freeze_panes = "B2"
 
     buffer = io.BytesIO()
     wb.save(buffer)
@@ -135,7 +137,9 @@ def rows_to_headings_xlsx_bytes(
     )
     header_font = Font(bold=True, color="FFFFFF")
     subheader_font = Font(bold=True, color="1F2A44")
-    header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    header_alignment = Alignment(
+        horizontal="center", vertical="center", wrap_text=False
+    )
 
     if not rows_list:
         for col_idx, key in enumerate(heading_keys, start=1):
@@ -198,10 +202,10 @@ def rows_to_headings_xlsx_bytes(
                 value = values[row_offset] if row_offset < len(values) else ""
                 cell = ws.cell(row=excel_row, column=col, value=value)
                 cell.alignment = Alignment(
-                    horizontal="left", vertical="top", wrap_text=True
+                    horizontal="left", vertical="center", wrap_text=False
                 )
 
-    ws.freeze_panes = "A3"
+    ws.freeze_panes = "B3"
 
     buffer = io.BytesIO()
     wb.save(buffer)
