@@ -12,21 +12,27 @@ from .config import CheckOptions, RuntimeOptions
 
 class Job:
     def __init__(
-        self, urls: List[str], check_options: CheckOptions, runtime: RuntimeOptions
+        self,
+        urls: List[str],
+        check_options: CheckOptions,
+        runtime: RuntimeOptions,
+        on_complete_callback=None,
     ):
         self.id = uuid.uuid4().hex
         self.urls = urls
         self.check_options = check_options
         self.runtime = runtime
-        self.status: str = "pending"
+        self.status: str = "queued"  # Изменено с "pending" на "queued"
         self.created_at = time.time()
         self.results: List[tuple[int, Dict[str, str]]] = []
         self.error: Optional[str] = None
         self.total = len(urls)
         self.completed = 0
+        self.queue_position: int = 0  # Позиция в очереди
         self._lock = threading.Lock()
         self._cancel = threading.Event()
         self._thread: Optional[threading.Thread] = None
+        self._on_complete = on_complete_callback
 
     def start(self):
         self._thread = threading.Thread(target=self._run, daemon=True)
@@ -51,6 +57,10 @@ class Job:
         except Exception as exc:  # pragma: no cover - defensive
             self.error = str(exc)
             self.status = "error"
+        finally:
+            # Вызвать callback после завершения
+            if self._on_complete:
+                self._on_complete(self.id)
 
     async def _run_async(self):
         limits = httpx.Limits(
@@ -90,18 +100,57 @@ class Job:
 
 
 class JobManager:
-    def __init__(self):
+    def __init__(self, max_concurrent_jobs: int = 1):
         self._jobs: Dict[str, Job] = {}
         self._lock = threading.Lock()
+        self._max_concurrent = max_concurrent_jobs
+        self._queue: List[str] = []  # Очередь job_id
+        self._sessions: Dict[str, float] = {}  # session_id -> last_heartbeat_time
+        self._session_timeout = 10  # Таймаут сессии в секундах
 
     def create_job(
         self, urls: List[str], check_options: CheckOptions, runtime: RuntimeOptions
     ) -> Job:
-        job = Job(urls, check_options, runtime)
+        job = Job(
+            urls, check_options, runtime, on_complete_callback=self._on_job_complete
+        )
         with self._lock:
             self._jobs[job.id] = job
-        job.start()
+            self._queue.append(job.id)
+            self._update_queue_positions()
+            self._process_queue()
         return job
+
+    def _on_job_complete(self, job_id: str):
+        """Обработчик завершения задачи - запускает следующую из очереди."""
+        with self._lock:
+            self._process_queue()
+
+    def _update_queue_positions(self):
+        """Обновляет позиции в очереди для всех задач."""
+        for idx, job_id in enumerate(self._queue):
+            job = self._jobs.get(job_id)
+            if job and job.status == "queued":
+                job.queue_position = idx + 1
+
+    def _process_queue(self):
+        """Запускает задачи из очереди, если есть свободные слоты."""
+        running_count = sum(1 for job in self._jobs.values() if job.status == "running")
+
+        while running_count < self._max_concurrent and self._queue:
+            job_id = self._queue[0]
+            job = self._jobs.get(job_id)
+
+            if job and job.status == "queued":
+                self._queue.pop(0)
+                job.queue_position = 0
+                job.start()
+                running_count += 1
+                self._update_queue_positions()
+            else:
+                # Удаляем завершенные/остановленные задачи из очереди
+                self._queue.pop(0)
+                self._update_queue_positions()
 
     def get(self, job_id: str) -> Optional[Job]:
         with self._lock:
@@ -112,17 +161,66 @@ class JobManager:
         if not job:
             return False
         job.cancel()
+
+        # Удалить из очереди и обработать следующую
+        with self._lock:
+            if job_id in self._queue:
+                self._queue.remove(job_id)
+                self._update_queue_positions()
+            self._process_queue()
+
         return True
 
     def status_snapshot(self, job: Job) -> Dict:
         return {
             "id": job.id,
             "status": job.status,
+            "queue_position": job.queue_position,
             "total": job.total,
             "completed": job.completed,
             "error": job.error,
             "has_results": bool(job.results),
         }
+
+    def get_stats(self) -> Dict:
+        """Возвращает статистику: количество активных пользователей и очередь."""
+        with self._lock:
+            # Очистить устаревшие сессии
+            self._cleanup_sessions()
+
+            active_jobs = sum(
+                1 for job in self._jobs.values() if job.status in ("running", "queued")
+            )
+            running_jobs = sum(
+                1 for job in self._jobs.values() if job.status == "running"
+            )
+            queued_jobs = len(self._queue)
+
+            # Количество активных пользователей = количество активных сессий
+            active_users = len(self._sessions)
+
+            return {
+                "active_users": active_users,
+                "running": running_jobs,
+                "queued": queued_jobs,
+                "max_concurrent": self._max_concurrent,
+            }
+
+    def heartbeat(self, session_id: str):
+        """Регистрирует heartbeat от активной вкладки."""
+        with self._lock:
+            self._sessions[session_id] = time.time()
+
+    def _cleanup_sessions(self):
+        """Удаляет устаревшие сессии."""
+        current_time = time.time()
+        expired = [
+            sid
+            for sid, last_time in self._sessions.items()
+            if current_time - last_time > self._session_timeout
+        ]
+        for sid in expired:
+            del self._sessions[sid]
 
     def results(self, job_id: str) -> Optional[List[Dict[str, str]]]:
         job = self.get(job_id)

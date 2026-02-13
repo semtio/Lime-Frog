@@ -384,7 +384,13 @@
           style="color: var(--accent); text-decoration: none; margin-left: 8px;">@semtio</a>
         <div class="muted">Вставьте домены (по одному в строке), выберите проверки и запустите</div>
       </div>
-      <div class="badge" id="job-badge" style="display:none;">Задача активна</div>
+      <div style="display: flex; gap: 12px; align-items: center;">
+        <div class="badge" id="job-badge" style="display:none;">Задача активна</div>
+        <div class="muted" id="stats-display" style="font-size: 12px;">
+          👥 Пользователей на сайте: <span id="active-users">0</span> |
+          📋 В очереди: <span id="queue-count">0</span>
+        </div>
+      </div>
     </header>
 
     <div class="panel">
@@ -501,9 +507,32 @@
     const badge = document.getElementById('job-badge');
     const settingsBlock = document.getElementById('settings');
     const toggleSettings = document.getElementById('toggle-settings');
+    const statsDisplay = document.getElementById('stats-display');
+    const activeUsersEl = document.getElementById('active-users');
+    const queueCountEl = document.getElementById('queue-count');
 
     let pollTimer = null;
     let jobId = localStorage.getItem('seo-job-id');
+
+    // Генерация уникального ID сессии для данной вкладки
+    let sessionId = sessionStorage.getItem('seo-session-id');
+    if (!sessionId) {
+      sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+      sessionStorage.setItem('seo-session-id', sessionId);
+    }
+
+    // Отправка heartbeat для регистрации активной вкладки
+    async function sendHeartbeat() {
+      try {
+        await fetch('/api/heartbeat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionId })
+        });
+      } catch (e) {
+        /* ignore */
+      }
+    }
 
     // ========== Функции для работы с localStorage ==========
     const STORAGE_KEYS = {
@@ -702,12 +731,29 @@
           return;
         }
         const data = await res.json();
-        const { status, completed, total, error } = data;
+        const { status, completed, total, error, queue_position } = data;
         const pct = total ? Math.round((completed / total) * 100) : 0;
         progressFill.style.width = pct + '%';
-        setStatus(`Статус: ${status}. Выполнено ${completed}/${total}` + (error ? `, ошибка: ${error}` : ''));
-        badge.style.display = status === 'running' ? 'inline-flex' : 'none';
-        stopBtn.disabled = status !== 'running';
+
+        // Отобразить позицию в очереди
+        let statusText = '';
+        if (status === 'queued' && queue_position > 0) {
+          statusText = `В очереди: позиция ${queue_position}`;
+          badge.style.display = 'inline-flex';
+          badge.textContent = `В очереди #${queue_position}`;
+        } else if (status === 'running') {
+          statusText = `Статус: выполняется. ${completed}/${total}`;
+          badge.style.display = 'inline-flex';
+          badge.textContent = 'Задача активна';
+        } else {
+          statusText = `Статус: ${status}. Выполнено ${completed}/${total}`;
+          badge.style.display = 'none';
+        }
+
+        if (error) statusText += `, ошибка: ${error}`;
+        setStatus(statusText);
+
+        stopBtn.disabled = status !== 'running' && status !== 'queued';
         if (status === 'completed' || status === 'stopped' || status === 'error') {
           clearInterval(pollTimer);
           startBtn.disabled = false;
@@ -783,6 +829,18 @@
       }
     }
 
+    async function fetchStats() {
+      try {
+        const res = await fetch('/api/stats');
+        const data = await res.json();
+        // Всегда показывать статистику
+        activeUsersEl.textContent = data.active_users || 0;
+        queueCountEl.textContent = data.queued || 0;
+      } catch (e) {
+        /* ignore */
+      }
+    }
+
     startBtn.addEventListener('click', startJob);
     stopBtn.addEventListener('click', stopJob);
     downloadBtn.addEventListener('click', downloadCsv);
@@ -802,6 +860,10 @@
 
     if (jobId) { pollStatus(); }
     setInterval(fetchResource, 5000);
+    setInterval(fetchStats, 3000);
+    setInterval(sendHeartbeat, 5000); // Отправлять heartbeat каждые 5 секунд
+    fetchStats(); // Загрузить сразу
+    sendHeartbeat(); // Отправить сразу при загрузке
   </script>
 </body>
 

@@ -195,6 +195,22 @@ def create_app() -> Flask:
             }
         )
 
+    @app.get("/api/stats")
+    def get_stats():
+        """Возвращает статистику: количество активных пользователей и очередь."""
+        stats = job_manager.get_stats()
+        return jsonify(stats)
+
+    @app.post("/api/heartbeat")
+    def heartbeat():
+        """Регистрирует heartbeat от активной вкладки."""
+        payload = request.get_json(force=True, silent=True) or {}
+        session_id = payload.get("session_id")
+        if session_id:
+            job_manager.heartbeat(session_id)
+            return jsonify({"ok": True})
+        return jsonify({"error": "session_id required"}), 400
+
     return app
 
 
