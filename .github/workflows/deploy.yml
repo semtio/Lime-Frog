@@ -18,7 +18,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
           script: |
-            cd /home/admin/web/staycasino7.de/public_html/seo-checker
+            cd /home/admin/web/staycasino7.de/public_html/seo-checker/Lime-Frog/
             git pull origin main
             source .venv/bin/activate
             pip install -r requirements.txt
