@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ru">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SEO Checker</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}" />
+</head>
+
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>SEO Checker</h1>
+        Author:<a href="https://t.me/semtio" target="_blank"
+          style="color: var(--accent); text-decoration: none; margin-left: 8px;">@semtio</a>
+        <div class="muted">Вставьте домены (по одному в строке), выберите проверки и запустите</div>
+      </div>
+      <div style="display: flex; gap: 12px; align-items: center;">
+        <div class="badge" id="job-badge" style="display:none;">Задача активна</div>
+        <div class="muted" id="stats-display" style="font-size: 12px;">
+          👥 Пользователей на сайте: <span id="active-users">0</span> |
+          📋 В очереди: <span id="queue-count">0</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="panel">
+      <div class="field">
+        <label for="urls">Список доменов</label>
+        <textarea id="urls" placeholder="example.com\nhttps://example.org"></textarea>
+      </div>
+
+      <div class="actions">
+        <button class="primary" id="start-btn">Старт</button>
+        <button class="danger" id="stop-btn" disabled>Стоп</button>
+        <button class="secondary" id="download-btn" disabled>Скачать CSV</button>
+        <button class="secondary" id="download-xlsx-btn" disabled>Скачать XLS</button>
+        <button class="secondary" id="clear-btn" title="Очистить сохранённые данные">🗑️ Очистить</button>
+      </div>
+
+      <div class="status" id="status">Готово к запуску</div>
+      <div class="progress-bar" aria-label="progress">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+      <div class="resource" id="resource" style="display:none;"></div>
+
+      <button class="settings-toggle" id="toggle-settings">⚙️ Настройки</button>
+      <div class="settings" id="settings">
+        {% include 'partials/runtime_settings.html' %}
+        {% include 'partials/main_checks.html' %}
+        {% include 'partials/heading_checks.html' %}
+        {% include 'partials/html_structure_checks.html' %}
+      </div>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+
+</html>

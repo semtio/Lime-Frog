@@ -1,0 +1,18 @@
+<div class="checks-section">
+  <div class="checks-header">
+    <span>⚙️ Настройки проверок</span>
+    <div class="checks-buttons">
+      <button type="button" class="toggle-all-btn" data-group="main-checks">Выбрать всё</button>
+    </div>
+  </div>
+  <div class="checks main-checks">
+    {% for key, checked in checks.items() %}
+    {% if not key.startswith('html_track_') and not key.startswith('collect_') %}
+    <label class="check-item">
+      <input type="checkbox" data-option="{{ key }}" {% if checked %}checked{% endif %} />
+      <span>{{ labels.get(key, key) }}</span>
+    </label>
+    {% endif %}
+    {% endfor %}
+  </div>
+</div>

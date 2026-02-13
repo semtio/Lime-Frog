@@ -1,0 +1,21 @@
+<div class="checks-section">
+  <div class="checks-header">
+    <span>📊 Сбор заголовков</span>
+    <div class="checks-buttons">
+      <button type="button" class="toggle-all-btn" data-group="heading-checks">Выбрать всё</button>
+    </div>
+  </div>
+  <div class="checks heading-checks">
+    {% for key, checked in checks.items() %}
+    {% if key.startswith('collect_') %}
+    <label class="check-item html-structure-option">
+      <input type="checkbox" data-option="{{ key }}" {% if checked %}checked{% endif %} />
+      <span>{{ labels.get(key, key) }}</span>
+    </label>
+    {% endif %}
+    {% endfor %}
+  </div>
+  <div class="checks-footer">
+    <button type="button" class="heading-download-btn" id="heading-download-btn" disabled>Скачать XLS</button>
+  </div>
+</div>

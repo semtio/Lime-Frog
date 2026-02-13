@@ -1,0 +1,18 @@
+<div class="grid">
+  <div class="field">
+    <label for="concurrency">Количество потоков</label>
+    <input type="number" id="concurrency" min="1" max="10" value="{{ defaults.concurrency }}" />
+  </div>
+  <div class="field">
+    <label for="timeout">Таймаут (сек.)</label>
+    <input type="number" id="timeout" min="3" max="120" value="{{ defaults.timeout_seconds }}" />
+  </div>
+  <div class="field">
+    <label for="retries">Повторы при таймауте</label>
+    <input type="number" id="retries" min="0" max="5" value="{{ defaults.retries }}" />
+  </div>
+  <div class="field">
+    <label for="filename">Название файла (необязательно)</label>
+    <input type="text" id="filename" placeholder="seo-check" maxlength="100" />
+  </div>
+</div>
