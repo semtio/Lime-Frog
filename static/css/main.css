@@ -28,21 +28,72 @@ body {
   max-width: 1100px;
   margin: 0 auto;
   padding: 24px 18px 42px;
+  padding-top: 100px;
 }
 
 header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
+  width: 100%;
+  padding: 12px 24px;
+  border-radius: 0;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  background: rgba(15, 21, 15, 0.25);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.16);
+  margin-bottom: 0;
 }
 
-h1 {
-  margin: 0;
+.tool-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.tool-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-color: rgba(12, 14, 19, 0.8);
+  color: #f4f6fb;
+  border: 1px solid rgba(77, 208, 225, 0.35);
+  border-radius: 10px;
+  padding: 6px 34px 6px 12px;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239aa0aa' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 12px 8px;
+}
+
+.tool-select option {
+  background: #0c0e13;
+  color: #e6e8ed;
+}
+
+.tool-select:focus {
+  outline: none;
+  border-color: rgba(77, 208, 225, 0.6);
+  box-shadow: 0 0 0 3px rgba(77, 208, 225, 0.12);
+}
+
+.tool-select-title {
   font-size: 22px;
   letter-spacing: 0.4px;
+  font-weight: 700;
+  line-height: 1.2;
 }
+}
+
 
 .muted {
   color: var(--muted);
@@ -54,8 +105,27 @@ h1 {
   border: 1px solid rgba(255, 255, 255, 0.04);
   border-radius: 14px;
   padding: 18px;
-  margin-top: 16px;
+  margin-top: 0;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+}
+
+.tool-view {
+  display: none;
+}
+
+.tool-view.active {
+  display: block;
+}
+
+.tool-description {
+  font-size: 15px;
+  color: var(--muted);
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  background: rgba(77, 208, 225, 0.08);
+  border-left: 3px solid rgba(77, 208, 225, 0.35);
+  border-radius: 6px;
+  line-height: 1.5;
 }
 
 textarea {

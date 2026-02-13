@@ -13,6 +13,10 @@ const toggleSettings = document.getElementById('toggle-settings');
 const statsDisplay = document.getElementById('stats-display');
 const activeUsersEl = document.getElementById('active-users');
 const queueCountEl = document.getElementById('queue-count');
+const toolSelect = document.getElementById('tool-select');
+const toolViews = document.querySelectorAll('[data-tool-view]');
+
+const TOOL_STORAGE_KEY = 'active-tool';
 
 let pollTimer = null;
 let jobId = localStorage.getItem('seo-job-id');
@@ -34,6 +38,28 @@ async function sendHeartbeat() {
     });
   } catch (e) {
     /* ignore */
+  }
+}
+
+function setActiveTool(toolName, updateUrl = true) {
+  if (!toolSelect) return;
+  const option = toolSelect.querySelector(`option[value="${toolName}"]`) || toolSelect.options[0];
+  if (!option) return;
+
+  const selectedName = option.value;
+  toolSelect.value = selectedName;
+  toolViews.forEach(view => {
+    view.classList.toggle('active', view.dataset.toolView === selectedName);
+  });
+
+  if (option.dataset.title) document.title = option.dataset.title;
+
+  localStorage.setItem(TOOL_STORAGE_KEY, selectedName);
+
+  if (updateUrl) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('module', selectedName);
+    history.replaceState({}, '', url.toString());
   }
 }
 
@@ -120,6 +146,19 @@ function clearAllData() {
 // ========== Инициализация ==========
 loadAllData();
 updateToggleButtons();
+
+if (toolSelect) {
+  const defaultTool = document.body.dataset.defaultTool;
+  const savedTool = localStorage.getItem(TOOL_STORAGE_KEY);
+  const params = new URLSearchParams(window.location.search);
+  const queryTool = params.get('module');
+  const initialTool = queryTool || savedTool || defaultTool || toolSelect.value;
+  setActiveTool(initialTool, false);
+
+  toolSelect.addEventListener('change', (event) => {
+    setActiveTool(event.target.value, true);
+  });
+}
 
 const setStatus = (text) => statusEl.textContent = text;
 const setProgress = (completed, total) => {

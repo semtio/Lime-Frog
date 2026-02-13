@@ -7,6 +7,7 @@ from typing import Any, Dict
 from flask import Flask, jsonify, render_template, request, send_file
 
 from logging_config import setup_logging, cleanup_old_job_logs, get_job_log_path
+from tabs import get_default_module, get_module, get_registered_modules
 from tabs.seo_checker.config import (
     CHECK_LABELS,
     DEFAULT_CHECK_OPTIONS,
@@ -20,6 +21,8 @@ from tabs.seo_checker.exporters import (
     rows_to_xlsx_bytes,
 )
 from tabs.seo_checker.jobs import JobManager
+import tabs.seo_checker
+import tabs.ssh_tools
 
 try:
     import psutil
@@ -40,14 +43,27 @@ def create_app() -> Flask:
 
     app = Flask(__name__)
 
-    @app.route("/")
-    def index():
+    def render_tool_page(selected_tool: str):
+        module = get_module(selected_tool) or get_default_module()
+        tools = [tool.to_dict() for tool in get_registered_modules()]
         return render_template(
             "index.html",
             defaults=DEFAULT_RUNTIME_OPTIONS.__dict__,
             checks=DEFAULT_CHECK_OPTIONS.to_dict(),
             labels=CHECK_LABELS,
+            tools=tools,
+            selected_tool=module.name if module else "seo_checker",
+            page_title=module.title if module else "SEO Checker",
+            page_hint=module.description if module else "",
         )
+
+    @app.route("/")
+    def index():
+        return render_tool_page("seo_checker")
+
+    @app.route("/ssh-tools")
+    def ssh_tools():
+        return render_tool_page("ssh_tools")
 
     @app.post("/api/job")
     def create_job():

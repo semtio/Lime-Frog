@@ -1,6 +1,3 @@
-Запуск python .\start.py
-Остановка Get-Process python | Stop-Process -Force
-
 # SEO Checker
 
 Проверка доменов по SEO-критериям. Результаты в CSV.
@@ -31,6 +28,14 @@ python app.py
 ### Шаг 5. Откройте в браузере
 ```
 http://127.0.0.1:5000
+```
+
+### Остановка приложения (локальная разработка)
+```powershell
+# Остановить все процессы Python
+Get-Process python | Stop-Process -Force
+
+# Или нажмите Ctrl+C в терминале, где запущено приложение
 ```
 
 ---
@@ -87,6 +92,18 @@ tail -f /var/log/nginx/access.log
 tail -f /var/log/nginx/error.log
 ```
 
+### Остановка приложения (локальная разработка на Linux)
+
+```bash
+# Остановить процесс Python по имени
+pkill -f "python.*start.py"
+
+# Или остановить все процессы Python
+pkill python
+
+# Или нажмите Ctrl+C в терминале, где запущено приложение
+```
+
 ---
 
 ### macOS
@@ -116,6 +133,19 @@ python3 app.py
 ```
 http://127.0.0.1:5000
 ```
+
+#### Остановка приложения
+```bash
+# Остановить процесс Python по имени
+pkill -f "python.*start.py"
+
+# Или остановить все процессы Python
+pkill python3
+
+# Или нажмите Ctrl+C в терминале, где запущено приложение
+```
+
+---
 
 ## Что проверяет
 - Коды ответов (40x/50x)

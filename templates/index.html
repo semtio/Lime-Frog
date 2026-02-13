@@ -4,29 +4,39 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>SEO Checker</title>
+  <title>{{ page_title }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}" />
 </head>
 
-<body>
+<body data-default-tool="{{ selected_tool }}">
+  <header>
+    <div>
+      <div class="tool-header">
+        <select id="tool-select" class="tool-select tool-select-title" aria-label="Выбор инструмента">
+          {% for tool in tools %}
+          <option value="{{ tool.name }}" data-title="{{ tool.title }}" data-hint="{{ tool.description }}"
+            data-path="{{ tool.path }}" {% if tool.name == selected_tool %}selected{% endif %}>
+            {{ tool.label }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      Author:<a href="https://t.me/semtio" target="_blank"
+        style="color: var(--accent); text-decoration: none; margin-left: 8px;">@semtio</a>
+    </div>
+    <div style="display: flex; gap: 12px; align-items: center;">
+      <div class="badge" id="job-badge" style="display:none;">Задача активна</div>
+      <div class="muted" id="stats-display" style="font-size: 12px;">
+        👥 Пользователей на сайте: <span id="active-users">0</span> |
+        📋 В очереди: <span id="queue-count">0</span>
+      </div>
+    </div>
+  </header>
   <div class="container">
-    <header>
-      <div>
-        <h1>SEO Checker</h1>
-        Author:<a href="https://t.me/semtio" target="_blank"
-          style="color: var(--accent); text-decoration: none; margin-left: 8px;">@semtio</a>
-        <div class="muted">Вставьте домены (по одному в строке), выберите проверки и запустите</div>
-      </div>
-      <div style="display: flex; gap: 12px; align-items: center;">
-        <div class="badge" id="job-badge" style="display:none;">Задача активна</div>
-        <div class="muted" id="stats-display" style="font-size: 12px;">
-          👥 Пользователей на сайте: <span id="active-users">0</span> |
-          📋 В очереди: <span id="queue-count">0</span>
-        </div>
-      </div>
-    </header>
 
-    <div class="panel">
+    <div class="tool-view {% if selected_tool == 'seo_checker' %}active{% endif %}" data-tool-view="seo_checker">
+      <div class="tool-description">Вставьте домены (по одному в строке), выберите проверки и запустите</div>
+      <div class="panel">
       <div class="field">
         <label for="urls">Список доменов</label>
         <textarea id="urls" placeholder="example.com\nhttps://example.org"></textarea>
@@ -52,6 +62,22 @@
         {% include 'partials/main_checks.html' %}
         {% include 'partials/heading_checks.html' %}
         {% include 'partials/html_structure_checks.html' %}
+      </div>
+      </div>
+    </div>
+
+    <div class="tool-view {% if selected_tool == 'ssh_tools' %}active{% endif %}" data-tool-view="ssh_tools">
+      <div class="tool-description">Базовый интерфейс инструментов для SSH задач</div>
+      <div class="panel">
+        <div class="checks-section">
+          <div class="checks-header">
+            <span>🧰 SSH Tools</span>
+          </div>
+          <div class="muted">Раздел в разработке. Здесь будут инструменты для SSH-задач.</div>
+          <div class="muted" style="margin-top: 8px;">
+            Базовая информация (автор, пользователи на сайте и очередь) отображается в шапке.
+          </div>
+        </div>
       </div>
     </div>
   </div>
