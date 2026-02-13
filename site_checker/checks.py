@@ -41,7 +41,71 @@ CSV_COLUMNS_BASE = [
     "Дубли H1/H2/H3",
     "Кол-во img",
     "Кол-во alt",
+    "CMS",
 ]
+
+
+def get_active_columns(check_options: CheckOptions, max_alts: int = 0) -> List[str]:
+    """Возвращает список активных колонок на основе включенных опций."""
+    cols = ["URL"]  # URL всегда присутствует
+
+    if check_options.check_status_codes:
+        cols.append("Код ответа")
+
+    if check_options.check_redirects:
+        cols.append("Редирект")
+
+    if check_options.check_html_lang:
+        cols.append("Язык сайта")
+
+    if check_options.check_indexability:
+        cols.extend(["Noindex", "Nofollow", "Canonical"])
+
+    if check_options.check_titles:
+        cols.extend(["Title", "Title Длина", "Description", "Description Длина"])
+
+    if check_options.check_sitemap:
+        cols.append("Sitemap 200")
+
+    if check_options.check_robots:
+        cols.extend(["Robots 200", "Robots Disallow", "Robots Sitemap"])
+
+    if check_options.check_404:
+        cols.extend(["Ссылка на стр.404", "Код стр.404", "Корректность 404"])
+
+    if check_options.check_h1:
+        cols.append("Кол-во H1")
+
+    # Заголовки H1-H6
+    if check_options.collect_h1:
+        cols.append("H1")
+    if check_options.collect_h2:
+        cols.append("H2")
+    if check_options.collect_h3:
+        cols.append("H3")
+    if check_options.collect_h4:
+        cols.append("H4")
+    if check_options.collect_h5:
+        cols.append("H5")
+    if check_options.collect_h6:
+        cols.append("H6")
+
+    if check_options.check_html_structure:
+        cols.append("HTML структура")
+
+    if check_options.check_heading_duplicates:
+        cols.append("Дубли H1/H2/H3")
+
+    if check_options.check_images:
+        cols.extend(["Кол-во img", "Кол-во alt"])
+        # Alt колонки добавляются динамически
+        for i in range(1, max_alts + 1):
+            cols.append(f"Alt-{i}")
+
+    if check_options.check_cms:
+        cols.append("CMS")
+
+    return cols
 
 
 def get_csv_columns(max_alts: int = 0) -> List[str]:
@@ -303,6 +367,42 @@ def find_heading_duplicates(soup: Optional[BeautifulSoup]) -> str:
     return " | ".join(duplicates) if duplicates else "дубликатов нет"
 
 
+def check_cms(soup: Optional[BeautifulSoup], response_text: str) -> str:
+    """Определяет используемую CMS."""
+    if not soup or not response_text:
+        return "нет"
+
+    # Проверка WordPress
+    # 1. wp-content или wp-includes в HTML
+    if "wp-content" in response_text or "wp-includes" in response_text:
+        return "WordPress"
+
+    # 2. meta generator
+    meta_generator = soup.find("meta", attrs={"name": "generator"})
+    if meta_generator and "WordPress" in meta_generator.get("content", ""):
+        return "WordPress"
+
+    # 3. /wp-admin или /wp-login.php в ссылках
+    links = soup.find_all(["a", "link", "script"])
+    for link in links:
+        href = link.get("href", "") or link.get("src", "")
+        if "/wp-admin" in href or "/wp-login.php" in href:
+            return "WordPress"
+
+    # Проверка Forge
+    forge_indicators = [
+        "encrypted.php?key=btn_link1",
+        "./styles/tinymce.css",
+        "application/ld+json",
+    ]
+
+    for indicator in forge_indicators:
+        if indicator in response_text:
+            return "Forge"
+
+    return "нет"
+
+
 async def check_domain_redirects(
     final_url: str, client: httpx.AsyncClient, runtime: RuntimeOptions
 ) -> str:
@@ -350,7 +450,7 @@ async def run_all_checks(
     # Если редирект и НЕ следуем редиректам - возвращаем только базовую информацию
     if is_redirect and not check_options.follow_redirects_for_checks:
         redirect_url = response_no_follow.headers.get("location", "")
-        result = {col: "" for col in get_csv_columns(0)}
+        result = {col: "" for col in get_active_columns(check_options, 0)}
         result["URL"] = normalized_url or raw_url
         if check_options.check_status_codes:
             result["Код ответа"] = str(response_no_follow.status_code)
@@ -376,7 +476,7 @@ async def run_all_checks(
 
     # Определить максимальное количество альтов для создания колонок
     max_alts = len(alts)
-    csv_columns = get_csv_columns(max_alts)
+    csv_columns = get_active_columns(check_options, max_alts)
 
     # Создать результат с нужным количеством колонок
     result: Dict[str, str] = {col: "" for col in csv_columns}
@@ -450,5 +550,9 @@ async def run_all_checks(
         if alts:
             for idx, alt in enumerate(alts, start=1):
                 result[f"Alt-{idx}"] = alt
+
+    # Проверка CMS
+    if check_options.check_cms:
+        result["CMS"] = check_cms(soup, response.text)
 
     return result

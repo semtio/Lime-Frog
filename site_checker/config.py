@@ -35,6 +35,9 @@ class CheckOptions:
     html_track_media: bool = False  # figure, figcaption
     html_track_other: bool = False  # address, time
 
+    # Проверка CMS
+    check_cms: bool = True
+
     def to_dict(self) -> Dict[str, bool]:
         return self.__dict__.copy()
 
@@ -73,6 +76,8 @@ CHECK_LABELS = {
     "html_track_semantic": "Семантика (main, section, article, header, footer, nav, aside)",
     "html_track_media": "Медиа (figure, figcaption)",
     "html_track_other": "Другое (address, time)",
+    # Проверка CMS
+    "check_cms": "Проверка CMS",
 }
 
 DEFAULT_CHECK_OPTIONS = CheckOptions()

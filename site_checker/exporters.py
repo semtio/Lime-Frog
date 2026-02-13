@@ -2,8 +2,6 @@ import csv
 import io
 from typing import Iterable, List
 
-from .checks import CSV_COLUMNS_BASE
-
 try:
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment
@@ -17,19 +15,21 @@ except ImportError:
 def rows_to_csv_bytes(rows: Iterable[dict]) -> bytes:
     rows_list = list(rows)
     if not rows_list:
-        fieldnames = CSV_COLUMNS_BASE
-    else:
-        # Собираем все ключи из всех рядов для получения динамических Alt-колонок
-        fieldnames = CSV_COLUMNS_BASE.copy()
-        all_keys = set()
-        for row in rows_list:
-            all_keys.update(row.keys())
-        # Добавляем Alt-колонки в правильном порядке
-        alt_keys = sorted(
-            [k for k in all_keys if k.startswith("Alt-")],
-            key=lambda x: int(x.split("-")[1]),
-        )
-        fieldnames.extend(alt_keys)
+        return b""
+
+    # Собираем все ключи из всех рядов (динамические колонки)
+    all_keys = []
+    for row in rows_list:
+        for key in row.keys():
+            if key not in all_keys:
+                all_keys.append(key)
+
+    # URL всегда первым, остальные в порядке появления
+    if "URL" in all_keys:
+        all_keys.remove("URL")
+        all_keys.insert(0, "URL")
+
+    fieldnames = all_keys
 
     buffer = io.StringIO()
     writer = csv.DictWriter(buffer, fieldnames=fieldnames, extrasaction="ignore")
@@ -46,19 +46,21 @@ def rows_to_xlsx_bytes(rows: Iterable[dict]) -> bytes:
 
     rows_list = list(rows)
     if not rows_list:
-        fieldnames = CSV_COLUMNS_BASE
-    else:
-        # Собираем все ключи из всех рядов для получения динамических Alt-колонок
-        fieldnames = CSV_COLUMNS_BASE.copy()
-        all_keys = set()
-        for row in rows_list:
-            all_keys.update(row.keys())
-        # Добавляем Alt-колонки в правильном порядке
-        alt_keys = sorted(
-            [k for k in all_keys if k.startswith("Alt-")],
-            key=lambda x: int(x.split("-")[1]),
-        )
-        fieldnames.extend(alt_keys)
+        return b""
+
+    # Собираем все ключи из всех рядов (динамические колонки)
+    all_keys = []
+    for row in rows_list:
+        for key in row.keys():
+            if key not in all_keys:
+                all_keys.append(key)
+
+    # URL всегда первым
+    if "URL" in all_keys:
+        all_keys.remove("URL")
+        all_keys.insert(0, "URL")
+
+    fieldnames = all_keys
 
     wb = Workbook()
     ws = wb.active

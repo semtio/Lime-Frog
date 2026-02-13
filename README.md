@@ -1,3 +1,6 @@
+Запуск python .\start.py
+Остановка Get-Process python | Stop-Process -Force
+
 # SEO Checker
 
 Проверка доменов по SEO-критериям. Результаты в CSV.
