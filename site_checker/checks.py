@@ -1,4 +1,5 @@
 import asyncio
+import re
 import secrets
 import string
 from typing import Dict, List, Optional, Tuple
@@ -9,7 +10,17 @@ from bs4 import BeautifulSoup
 
 from .config import CheckOptions, RuntimeOptions
 
-USER_AGENT = "Mozilla/5.0 (compatible; LimeFrogChecker/1.0; +https://example.com)"
+USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+
+BROWSER_HEADERS = {
+    "User-Agent": USER_AGENT,
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+    "Accept-Language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7",
+    "Accept-Encoding": "gzip, deflate, br",
+    "DNT": "1",
+    "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
+}
 
 CSV_COLUMNS_BASE = [
     "URL",
@@ -42,6 +53,7 @@ CSV_COLUMNS_BASE = [
     "Кол-во img",
     "Кол-во alt",
     "CMS",
+    "CMS Debug",
 ]
 
 
@@ -103,7 +115,7 @@ def get_active_columns(check_options: CheckOptions, max_alts: int = 0) -> List[s
             cols.append(f"Alt-{i}")
 
     if check_options.check_cms:
-        cols.append("CMS")
+        cols.extend(["CMS", "CMS Debug"])
 
     return cols
 
@@ -367,40 +379,197 @@ def find_heading_duplicates(soup: Optional[BeautifulSoup]) -> str:
     return " | ".join(duplicates) if duplicates else "дубликатов нет"
 
 
-def check_cms(soup: Optional[BeautifulSoup], response_text: str) -> str:
-    """Определяет используемую CMS."""
-    if not soup or not response_text:
-        return "нет"
+async def check_cms(
+    url: str,
+    client: httpx.AsyncClient,
+    runtime: RuntimeOptions,
+) -> Tuple[str, str]:
+    """Определяет CMS (фокус на WordPress) с диагностикой.
 
-    # Проверка WordPress
-    # 1. wp-content или wp-includes в HTML
-    if "wp-content" in response_text or "wp-includes" in response_text:
-        return "WordPress"
+    Возвращает: (cms_name, debug_reason)
+    """
+    features = set()
+    debug_log = []
 
-    # 2. meta generator
-    meta_generator = soup.find("meta", attrs={"name": "generator"})
-    if meta_generator and "WordPress" in meta_generator.get("content", ""):
-        return "WordPress"
+    # 1. Попытка HTTPS с браузерными заголовками
+    try:
+        response = await client.get(url, follow_redirects=True, headers=BROWSER_HEADERS)
+        status_initial = response.status_code
+        final_url = str(response.url)
+        debug_log.append(f"https_ok | status={status_initial} | final={final_url}")
+    except httpx.ConnectError as e:
+        debug_log.append(f"https_connect_error: {str(e)[:100]}")
+        # Fallback на HTTP
+        http_url = url.replace("https://", "http://")
+        try:
+            response = await client.get(
+                http_url, follow_redirects=True, headers=BROWSER_HEADERS
+            )
+            status_initial = response.status_code
+            final_url = str(response.url)
+            debug_log.append(
+                f"http_fallback_ok | status={status_initial} | final={final_url}"
+            )
+        except Exception as fallback_e:
+            return "Unknown", f"connection_failed: {str(fallback_e)[:100]}"
+    except httpx.TimeoutException:
+        return "Unknown", "timeout"
+    except Exception as e:
+        return "Unknown", f"request_error: {str(e)[:100]}"
 
-    # 3. /wp-admin или /wp-login.php в ссылках
-    links = soup.find_all(["a", "link", "script"])
-    for link in links:
-        href = link.get("href", "") or link.get("src", "")
-        if "/wp-admin" in href or "/wp-login.php" in href:
-            return "WordPress"
+    # 2. Проверка статуса
+    if status_initial >= 400:
+        return "Unknown", f"http_{status_initial}"
 
-    # Проверка Forge
+    # 3. Проверка content-type
+    content_type = response.headers.get("content-type", "").lower()
+    if "text/html" not in content_type:
+        return "Unknown", f"non_html_content_type: {content_type}"
+
+    # 4. Проверка длины HTML
+    response_text = response.text or ""
+    html_len = len(response_text)
+    debug_log.append(f"html_len={html_len}")
+
+    if html_len < 500:
+        return "Unknown", f"short_html: {html_len}b"
+
+    response_lower = response_text.lower()
+
+    # 5. Быстрые текстовые признаки WordPress
+    if "wp-content" in response_lower:
+        features.add("wp-content")
+    if "wp-includes" in response_lower:
+        features.add("wp-includes")
+    if "wp-json" in response_lower or "/wp/v2/" in response_lower:
+        features.add("wp-json")
+    if "xmlrpc.php" in response_lower:
+        features.add("xmlrpc")
+    if (
+        "wp-embed.min.js" in response_lower
+        or "wp-emoji-release.min.js" in response_lower
+    ):
+        features.add("wp-scripts")
+
+    # 6. Парсинг BeautifulSoup
+    try:
+        soup = BeautifulSoup(response_text, "lxml")
+    except Exception:
+        soup = None
+
+    if soup:
+        # meta generator
+        meta_gen = soup.find("meta", attrs={"name": "generator"})
+        if meta_gen:
+            content = (meta_gen.get("content") or "").lower()
+            if "wordpress" in content:
+                features.add("meta_generator")
+
+        # link rel="https://api.w.org/"
+        for link_tag in soup.find_all("link"):
+            href = (link_tag.get("href") or "").lower()
+            if "api.w.org" in href or "wp-json" in href:
+                features.add("link_api_w_org")
+                break
+
+        # Проверка наличия хотя бы одной ссылки с wp-признаками
+        has_wp_link = False
+        for tag in soup.find_all(["a", "link", "script", "img"]):
+            href = (tag.get("href") or tag.get("src") or "").lower()
+            if not href:
+                continue
+            if any(
+                marker in href
+                for marker in [
+                    "wp-content",
+                    "wp-includes",
+                    "wp-admin",
+                    "wp-login.php",
+                    "xmlrpc.php",
+                ]
+            ):
+                has_wp_link = True
+                break
+
+        if has_wp_link:
+            features.add("wp_links")
+
+    # 7. HTTP заголовки
+    link_header = response.headers.get("link", "").lower()
+    if "wp-json" in link_header or "api.w.org" in link_header:
+        features.add("header_link_wp")
+
+    # Cookies wordpress_*
+    if any((name or "").lower().startswith("wordpress_") for name in response.cookies):
+        features.add("wp_cookies")
+
+    debug_log.append(f"features={len(features)}: {', '.join(sorted(features))}")
+
+    # 8. Решение по WordPress
+    if len(features) >= 2:
+        return "WordPress", " | ".join(debug_log)
+
+    # 9. Опциональные сетевые проверки (только если быстрых признаков < 2)
+    parsed = urlparse(final_url)
+    base_root = (
+        f"{parsed.scheme}://{parsed.netloc}" if parsed.scheme and parsed.netloc else ""
+    )
+
+    if base_root:
+        network_features = set()
+        short_timeout = httpx.Timeout(5.0)  # короткий таймаут
+
+        async def check_endpoint(endpoint: str) -> bool:
+            try:
+                resp = await client.get(
+                    base_root + endpoint,
+                    follow_redirects=False,
+                    headers=BROWSER_HEADERS,
+                    timeout=short_timeout,
+                )
+                return resp.status_code in (200, 302, 403)
+            except Exception:
+                return False
+
+        checks = await asyncio.gather(
+            check_endpoint("/wp-login.php"),
+            check_endpoint("/wp-admin/"),
+            check_endpoint("/wp-json/"),
+            return_exceptions=True,
+        )
+
+        if checks[0]:
+            network_features.add("endpoint_wp_login")
+        if checks[1]:
+            network_features.add("endpoint_wp_admin")
+        if checks[2]:
+            network_features.add("endpoint_wp_json")
+
+        features.update(network_features)
+        debug_log.append(
+            f"network_features={len(network_features)}: {', '.join(sorted(network_features))}"
+        )
+
+    if len(features) >= 2:
+        return "WordPress", " | ".join(debug_log)
+
+    # 10. Проверка Forge
     forge_indicators = [
         "encrypted.php?key=btn_link1",
         "./styles/tinymce.css",
-        "application/ld+json",
     ]
 
     for indicator in forge_indicators:
         if indicator in response_text:
-            return "Forge"
+            return "Forge", " | ".join(debug_log)
 
-    return "нет"
+    # Не определено
+    reason = (
+        "no_wp_signals"
+        if len(features) == 0
+        else f"insufficient_signals: {len(features)}"
+    )
+    return "Unknown", f"{reason} | " + " | ".join(debug_log)
 
 
 async def check_domain_redirects(
@@ -435,14 +604,30 @@ async def run_all_checks(
     normalized_url = normalize_url(raw_url)
 
     if not normalized_url:
-        return {"URL": raw_url, "Код ответа": "некорректный адрес"}
+        columns = get_active_columns(check_options, 0)
+        result: Dict[str, str] = {col: "" for col in columns}
+        result["URL"] = raw_url
+        if check_options.check_status_codes:
+            result["Код ответа"] = "некорректный адрес"
+        if check_options.check_cms:
+            result["CMS"] = "Unknown"
+            result["CMS Debug"] = "invalid_url"
+        return result
 
     # Получить первоначальный ответ (без следования редиректам)
     response_no_follow = await fetch_with_retries(
         client, normalized_url, runtime, follow_redirects=False
     )
     if not response_no_follow:
-        return {"URL": normalized_url or raw_url, "Код ответа": "нет ответа"}
+        columns = get_active_columns(check_options, 0)
+        result: Dict[str, str] = {col: "" for col in columns}
+        result["URL"] = normalized_url or raw_url
+        if check_options.check_status_codes:
+            result["Код ответа"] = "нет ответа"
+        if check_options.check_cms:
+            result["CMS"] = "Unknown"
+            result["CMS Debug"] = "no_response_initial"
+        return result
 
     # Проверяем, есть ли редирект
     is_redirect = response_no_follow.status_code in (301, 302, 303, 307, 308)
@@ -456,6 +641,9 @@ async def run_all_checks(
             result["Код ответа"] = str(response_no_follow.status_code)
         if check_options.check_redirects:
             result["Редирект"] = redirect_url
+        if check_options.check_cms:
+            result["CMS"] = "Unknown"
+            result["CMS Debug"] = "redirect_not_followed"
         return result
 
     # Получить финальный ответ (после всех редиректов) для контента
@@ -551,8 +739,10 @@ async def run_all_checks(
             for idx, alt in enumerate(alts, start=1):
                 result[f"Alt-{idx}"] = alt
 
-    # Проверка CMS
+    # Проверка CMS (независимый запрос)
     if check_options.check_cms:
-        result["CMS"] = check_cms(soup, response.text)
+        cms_value, cms_debug = await check_cms(normalized_url, client, runtime)
+        result["CMS"] = cms_value
+        result["CMS Debug"] = cms_debug
 
     return result

@@ -69,7 +69,7 @@ class Job:
         )
         timeout = httpx.Timeout(self.runtime.timeout_seconds)
         async with httpx.AsyncClient(
-            headers={"User-Agent": checks.USER_AGENT}, limits=limits, timeout=timeout
+            headers=checks.BROWSER_HEADERS, limits=limits, timeout=timeout
         ) as client:
             sem = asyncio.Semaphore(self.runtime.concurrency)
             tasks = [
