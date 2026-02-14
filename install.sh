@@ -177,12 +177,14 @@ sleep 3
 
 # Проверка статуса сервиса
 if ! systemctl is-active --quiet $SERVICE_NAME; then
-    error_exit "Сервис не запустился. Проверьте логи: journalctl -u $SERVICE_NAME -n 50"
+    error_exit "Сервис не запустился. Проверьте логи:\njournalctl -u $SERVICE_NAME -n 50"
 fi
 
 # Проверка что Gunicorn слушает порт 8000
 if ! ss -tlnp | grep -q "127.0.0.1:8000"; then
-    error_exit "Gunicorn не слушает порт 8000. Проверьте логи: journalctl -u $SERVICE_NAME -n 50"
+    warn "Gunicorn не слушает порт 8000. Выводу логи для диагностики:"
+    journalctl -u $SERVICE_NAME -n 30
+    error_exit "Сервис запущен, но не слушает порт 8000. Проверьте ошибки выше."
 fi
 
 # Проверка что Nginx слушает APP_PORT
