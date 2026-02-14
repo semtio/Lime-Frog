@@ -95,6 +95,10 @@ python3 -m venv "$VENV_DIR" || error_exit "Не удалось создать ve
 # Даём права www-data на venv папку для запуска gunicorn
 chown -R $APP_USER:$APP_USER "$VENV_DIR"
 
+# Создаём и даём права на необходимые директории
+mkdir -p "$APP_DIR/logs"
+chown -R $APP_USER:$APP_USER "$APP_DIR/logs"
+
 info "[3/8] Настройка Nginx..."
 # Создаём директории для sites-enabled
 mkdir -p /etc/nginx/sites-available
