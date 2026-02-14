@@ -1,0 +1,16 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Update project
+        run: |
+          cd /home/admin/web/staycasino7.de/public_html/seo-checker/Lime-Frog
+          git pull origin main
