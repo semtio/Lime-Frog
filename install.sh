@@ -92,12 +92,14 @@ info "[2/8] Настройка виртуального окружения..."
 python3 -m venv "$VENV_DIR" || error_exit "Не удалось создать venv"
 "$VENV_DIR/bin/pip" install --upgrade pip -q
 "$VENV_DIR/bin/pip" install -r "$APP_DIR/requirements.txt" -q || error_exit "Не удалось установить зависимости"
-# Даём права www-data на venv папку для запуска gunicorn
-chown -R $APP_USER:$APP_USER "$VENV_DIR"
 
-# Создаём и даём права на необходимые директории
+# Создаём необходимые директории
 mkdir -p "$APP_DIR/logs"
-chown -R $APP_USER:$APP_USER "$APP_DIR/logs"
+
+# Даём права www-data на всю папку проекта для чтения, и полные права на venv и logs
+chown -R $APP_USER:$APP_USER "$APP_DIR"
+chmod -R 755 "$APP_DIR"
+chmod -R 775 "$APP_DIR/logs"
 
 info "[3/8] Настройка Nginx..."
 # Создаём директории для sites-enabled
