@@ -95,13 +95,11 @@ header {
 }
 
 .tool-select-title {
-    font-size: 22px;
+    font-size: 18px;
     letter-spacing: 0.4px;
     font-weight: 700;
     line-height: 1.2;
 }
-}
-
 
 .muted {
     color: var(--muted);
