@@ -89,9 +89,11 @@ if ! id "$APP_USER" &>/dev/null; then
 fi
 
 info "[2/8] Настройка виртуального окружения..."
-sudo -u $APP_USER python3 -m venv "$VENV_DIR" || error_exit "Не удалось создать venv"
-sudo -u $APP_USER "$VENV_DIR/bin/pip" install --upgrade pip -q
-sudo -u $APP_USER "$VENV_DIR/bin/pip" install -r "$APP_DIR/requirements.txt" -q || error_exit "Не удалось установить зависимости"
+python3 -m venv "$VENV_DIR" || error_exit "Не удалось создать venv"
+"$VENV_DIR/bin/pip" install --upgrade pip -q
+"$VENV_DIR/bin/pip" install -r "$APP_DIR/requirements.txt" -q || error_exit "Не удалось установить зависимости"
+# Даём права www-data на venv папку для запуска gunicorn
+chown -R $APP_USER:$APP_USER "$VENV_DIR"
 
 info "[3/8] Настройка Nginx..."
 # Создаём директории для sites-enabled
