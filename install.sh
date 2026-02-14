@@ -29,7 +29,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # Переменные
-APP_DIR="/opt/seo-checker"
+APP_DIR="$(pwd)"
 APP_USER="www-data"
 VENV_DIR="$APP_DIR/venv"
 SERVICE_NAME="seo-checker"
@@ -88,17 +88,12 @@ if ! id "$APP_USER" &>/dev/null; then
     useradd -r -s /bin/false $APP_USER || error_exit "Не удалось создать пользователя"
 fi
 
-info "[2/8] Создание директории приложения..."
-mkdir -p "$APP_DIR"
-cp -r . "$APP_DIR/" || error_exit "Не удалось скопировать файлы"
-chown -R $APP_USER:$APP_USER "$APP_DIR"
-
-info "[3/8] Создание виртуального окружения..."
+info "[2/8] Настройка виртуального окружения..."
 sudo -u $APP_USER python3 -m venv "$VENV_DIR" || error_exit "Не удалось создать venv"
 sudo -u $APP_USER "$VENV_DIR/bin/pip" install --upgrade pip -q
 sudo -u $APP_USER "$VENV_DIR/bin/pip" install -r "$APP_DIR/requirements.txt" -q || error_exit "Не удалось установить зависимости"
 
-info "[4/8] Настройка Nginx..."
+info "[3/8] Настройка Nginx..."
 # Создаём директории для sites-enabled
 mkdir -p /etc/nginx/sites-available
 mkdir -p /etc/nginx/sites-enabled
@@ -121,7 +116,7 @@ server {
     }
 
     location /static {
-        alias /opt/seo-checker/static;
+        alias $APP_DIR/static;
         expires 30d;
     }
 }
@@ -137,7 +132,7 @@ fi
 nginx -t || error_exit "Конфигурация Nginx содержит ошибки"
 systemctl reload nginx || error_exit "Не удалось перезагрузить Nginx"
 
-info "[5/8] Создание systemd сервиса..."
+info "[4/8] Создание systemd сервиса..."
 cat > /etc/systemd/system/$SERVICE_NAME.service <<EOF
 [Unit]
 Description=SEO Checker (Gunicorn)
@@ -164,7 +159,7 @@ systemctl daemon-reload
 systemctl enable $SERVICE_NAME || error_exit "Не удалось включить автозапуск сервиса"
 systemctl restart $SERVICE_NAME || error_exit "Не удалось запустить сервис"
 
-info "[6/8] Настройка Firewall..."
+info "[5/8] Настройка Firewall..."
 if command -v ufw &> /dev/null; then
     ufw --force enable
     ufw allow 22/tcp
@@ -175,7 +170,7 @@ else
     warn "UFW не установлен, пропускаю настройку firewall"
 fi
 
-info "[7/8] Ожидание запуска сервиса..."
+info "[6/8] Ожидание запуска сервиса..."
 sleep 3
 
 # Проверка статуса сервиса
@@ -193,7 +188,7 @@ if ! ss -tlnp | grep -q ":$APP_PORT "; then
     error_exit "Nginx не слушает порт $APP_PORT"
 fi
 
-info "[8/8] Валидация доступности приложения..."
+info "[7/8] Валидация доступности приложения..."
 
 # Получаем IP сервера
 SERVER_IP=$(hostname -I | awk '{print $1}')
@@ -229,45 +224,3 @@ echo "Nginx логи:"
 echo "  tail -f /var/log/nginx/access.log"
 echo "  tail -f /var/log/nginx/error.log"
 echo ""
-
-WorkingDirectory=$APP_DIR
-Environment="PATH=$VENV_DIR/bin"
-ExecStart=$VENV_DIR/bin/gunicorn -c $APP_DIR/gunicorn.conf.py app:app
-ExecReload=/bin/kill -s HUP \$MAINPID
-KillMode=mixed
-TimeoutStopSec=5
-PrivateTmp=true
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-systemctl daemon-reload
-systemctl enable $SERVICE_NAME
-systemctl restart $SERVICE_NAME
-
-echo "[6/7] Настройка Firewall (UFW)..."
-ufw --force enable
-ufw allow 22/tcp
-ufw allow 80/tcp
-ufw allow 443/tcp
-ufw reload
-
-echo "[7/7] Проверка статуса..."
-systemctl status $SERVICE_NAME --no-pager || true
-nginx -t
-
-echo ""
-echo "✅ Установка завершена!"
-echo ""
-echo "Сервис запущен на http://$(hostname -I | awk '{print $1}')"
-echo ""
-echo "Управление сервисом:"
-echo "  sudo systemctl status $SERVICE_NAME"
-echo "  sudo systemctl restart $SERVICE_NAME"
-echo "  sudo systemctl logs -f $SERVICE_NAME  # просмотр логов"
-echo ""
-echo "Nginx логи:"
-echo "  /var/log/nginx/access.log"
-echo "  /var/log/nginx/error.log"
