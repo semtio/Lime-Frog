@@ -4,7 +4,16 @@ import sys
 from pathlib import Path
 
 
-REQUIRED_MODULES = ["flask", "httpx", "bs4", "lxml", "psutil", "bcrypt"]
+REQUIRED_MODULES = [
+    "flask",
+    "httpx",
+    "bs4",
+    "lxml",
+    "psutil",
+    "bcrypt",
+    "cryptography",
+    "paramiko",
+]
 
 
 def ensure_dependencies():

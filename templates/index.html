@@ -7,6 +7,7 @@
   <title>{{ page_title }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}" />
+  <link rel="stylesheet" href="/ssh-tools/static/css/ssh_tools.css" />
 </head>
 
 <body data-default-tool="{{ selected_tool }}">
@@ -68,18 +69,132 @@
     </div>
 
     <div class="tool-view {% if selected_tool == 'ssh_tools' %}active{% endif %}" data-tool-view="ssh_tools">
-      <div class="tool-description">Базовый интерфейс инструментов для SSH задач</div>
-      <div class="panel">
-        <div class="checks-section">
-          <div class="checks-header">
-            <span>🧰 SSH Tools</span>
-          </div>
-          <div class="muted">Раздел в разработке. Здесь будут инструменты для SSH-задач.</div>
-          <div class="muted" style="margin-top: 8px;">
-            Базовая информация (автор, пользователи на сайте и очередь) отображается в шапке.
+      <div class="tool-description">Подключение к серверам по SSH и запуск команд</div>
+      <div class="panel ssh-tools-panel">
+        <div class="ssh-tools-header">
+          <div>
+            <div class="ssh-tools-title">🧰 SSH Tools</div>
+            <div class="ssh-tools-hint">Выберите сервер и проверьте подключение</div>
           </div>
         </div>
+
+        <div class="ssh-connection-card">
+          <div class="ssh-connection-grid">
+            <div class="field">
+              <label for="ssh-server-select">Сервер</label>
+              <select id="ssh-server-select" class="tool-select">
+                <option value="">Загрузка...</option>
+              </select>
+            </div>
+            <div class="ssh-actions">
+              <button class="secondary" id="ssh-add-server" type="button">Добавить</button>
+              <button class="primary" id="ssh-test-connection" type="button" disabled>Тест подключения</button>
+              <button class="danger" id="ssh-delete-server" type="button" disabled>Удалить</button>
+            </div>
+          </div>
+          <div class="ssh-status" id="ssh-status">Готово к подключению</div>
+        </div>
+
+        <!-- Replace Tool: Компактный интерфейс -->
+        <div class="replace-tool-panel" id="replace-tool-panel">
+          <!-- Настройки сервера (компактно) -->
+          <div class="replace-config">
+            <div class="replace-config-row">
+              <input
+                id="replace-base-path"
+                name="ssh_base_path"
+                type="text"
+                placeholder="Базовый путь: /home/admin/web/"
+                class="config-input"
+                autocomplete="on" />
+              <button id="replace-confirm-base-path" class="btn-compact secondary" type="button">✓ Подтвердить</button>
+            </div>
+            <div class="replace-config-row">
+              <input
+                id="replace-relative-path"
+                name="ssh_relative_path"
+                type="text"
+                placeholder="Относительный путь: public_html/header.php"
+                class="config-input"
+                autocomplete="on"
+                disabled />
+              <button id="replace-find-files" class="btn-compact secondary" type="button" disabled>🔍 Найти</button>
+            </div>
+          </div>
+
+          <!-- Основные 3 поля (как на референсе) -->
+          <div class="replace-main-grid">
+            <!-- Поле 1: Файлы (слева, большое) -->
+            <div class="replace-field-large">
+              <label>① Найденные файлы</label>
+              <div id="replace-files-list" class="files-textarea"></div>
+            </div>
+
+            <!-- Поля 2 и 3 (справа, стек) -->
+            <div class="replace-field-stack">
+              <!-- Поле 2: Текст для поиска (маленькое) -->
+              <div class="replace-field-small">
+                <label>② Найти</label>
+                <textarea
+                  id="replace-search-text"
+                  placeholder="Текст для поиска"
+                  disabled></textarea>
+              </div>
+
+              <!-- Поле 3: Текст для замены (большое) -->
+              <div class="replace-field-medium">
+                <label>③ Заменить (по строке на домен)</label>
+                <textarea
+                  id="replace-replacements"
+                  placeholder="Замены для каждого домена"
+                  disabled></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- Кнопки действий (компактно) -->
+          <div class="replace-actions-compact">
+            <button id="replace-preview-btn" class="secondary" type="button" disabled>Предпросмотр</button>
+            <button id="replace-execute-btn" class="primary" type="button" disabled>Применить</button>
+            <div id="replace-tool-status" class="status-inline"></div>
+          </div>
+
+          <!-- Результаты (скрытые по умолчанию) -->
+          <div id="replace-tool-results" class="replace-results-compact"></div>
+        </div>
       </div>
+    </div>
+  </div>
+
+  <div id="ssh-modal-overlay" class="ssh-modal-overlay hidden">
+    <div class="ssh-modal">
+      <h3>Добавить сервер</h3>
+      <form id="ssh-modal-form">
+        <div class="field">
+          <label for="ssh-name">Название</label>
+          <input id="ssh-name" name="name" type="text" placeholder="Production" required />
+        </div>
+        <div class="field">
+          <label for="ssh-host">IP или домен</label>
+          <input id="ssh-host" name="host" type="text" placeholder="192.168.1.10" required />
+        </div>
+        <div class="field">
+          <label for="ssh-port">Порт</label>
+          <input id="ssh-port" name="port" type="number" value="22" min="1" max="65535" />
+        </div>
+        <div class="field">
+          <label for="ssh-username">Логин</label>
+          <input id="ssh-username" name="username" type="text" placeholder="root" required />
+        </div>
+        <div class="field">
+          <label for="ssh-password">Пароль</label>
+          <input id="ssh-password" name="password" type="password" placeholder="••••••" required />
+        </div>
+        <div class="ssh-modal-actions">
+          <button class="secondary" id="ssh-modal-close" type="button">Отмена</button>
+          <button class="primary" type="submit">Сохранить</button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -131,6 +246,8 @@
   </div>
 
   <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+  <script src="/ssh-tools/static/js/ssh_tools.js"></script>
+  <script src="/ssh-tools/static/js/replace_tool.js"></script>
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 

@@ -23,6 +23,7 @@ from tabs.seo_checker.exporters import (
     rows_to_xlsx_bytes,
 )
 from tabs.seo_checker.jobs import JobManager
+from tabs.ssh_tools.routes import register_routes as register_ssh_routes
 import tabs.seo_checker
 import tabs.ssh_tools
 
@@ -330,6 +331,8 @@ def create_app() -> Flask:
             job_manager.heartbeat(session_id)
             return jsonify({"ok": True})
         return jsonify({"error": "session_id required"}), 400
+
+    register_ssh_routes(app, require_auth)
 
     return app
 

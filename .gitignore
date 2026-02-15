@@ -30,3 +30,7 @@ broken version
 
 # Authentication (защита учетных данных)
 # auth/credentials.json
+
+# SSH Tools (зашифрованные данные и ключ)
+tabs/ssh_tools/data/servers.json
+tabs/ssh_tools/data/ssh_tools.key

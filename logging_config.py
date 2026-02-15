@@ -80,6 +80,21 @@ def setup_logging():
     - RotatingFileHandler для logs/app.log (10MB × 5 файлов)
     - StreamHandler для stdout (для journalctl)
     """
+    # Настроим root logger для всех модулей
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
+    root_logger.handlers.clear()
+
+    # Console handler для root logger (чтобы все модули писали в консоль)
+    console_handler = logging.StreamHandler()
+    console_formatter = logging.Formatter(
+        '%(asctime)s | %(levelname)-8s | %(name)s | %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    console_handler.setFormatter(console_formatter)
+    root_logger.addHandler(console_handler)
+
+    # Настроим lime_frog logger для приложения
     logger = logging.getLogger("lime_frog")
     logger.setLevel(logging.INFO)
 
@@ -102,10 +117,13 @@ def setup_logging():
     file_handler.setFormatter(file_formatter)
     logger.addHandler(file_handler)
 
-    # Дублируем в stdout для journalctl
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(file_formatter)
-    logger.addHandler(console_handler)
+    # Не дублировать в root logger (уже пишем в файл и консоль)
+    logger.propagate = False
+
+    # Добавить console handler и для lime_frog логов
+    lime_console = logging.StreamHandler()
+    lime_console.setFormatter(file_formatter)
+    logger.addHandler(lime_console)
 
     logger.info("Logging configured: app.log + stdout")
 

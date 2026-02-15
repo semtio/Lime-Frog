@@ -1,0 +1,617 @@
+/* ==================== SSH Tools styles ==================== */
+
+.ssh-tools-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Селект с действиями (как в SEO Checker) */
+.ssh-connection-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.ssh-connection-grid .field {
+  flex: 1;
+  min-width: 200px;
+  margin: 0;
+}
+
+.ssh-connection-grid .field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.ssh-connection-grid #ssh-server-select {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 14px;
+  background: var(--bg-primary);
+  border: 2px solid var(--accent);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-family: inherit;
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.08);
+  transition: all 0.2s ease;
+}
+
+.ssh-connection-grid #ssh-server-select:hover {
+  border-color: #2dd4a3;
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.12);
+}
+
+.ssh-connection-grid #ssh-server-select:focus {
+  outline: none;
+  border-color: #22c55e;
+  box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.2);
+}
+
+/* Кнопки действия */
+.ssh-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-bottom: 0;
+}
+
+.ssh-actions button {
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.ssh-actions .primary {
+  background: var(--accent);
+  color: #000;
+}
+
+.ssh-actions .primary:hover:not(:disabled) {
+  background: #2dd4a3;
+  transform: translateY(-1px);
+}
+
+.ssh-actions .secondary {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+
+.ssh-actions .secondary:hover:not(:disabled) {
+  background: var(--bg-primary);
+}
+
+.ssh-actions .danger {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.ssh-actions .danger:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.ssh-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Статус подключения */
+.ssh-status {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: transparent;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.ssh-status.ok {
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.ssh-status.error {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+}
+
+/* ==================== Модальное окно ==================== */
+
+.ssh-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9998;
+  animation: fadeIn 0.3s ease;
+}
+
+.ssh-modal-overlay.hidden {
+  display: none;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.ssh-modal {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  width: min(460px, 90vw);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.ssh-modal h3 {
+  margin: 0 0 16px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ssh-modal .field {
+  margin-bottom: 14px;
+}
+
+.ssh-modal .field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.ssh-modal .field input {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 14px;
+  background: var(--bg-primary);
+  border: 2px solid var(--accent);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-family: inherit;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.08);
+}
+
+.ssh-modal .field input:hover {
+  border-color: #2dd4a3;
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.12);
+}
+
+.ssh-modal .field input:focus {
+  outline: none;
+  border-color: #22c55e;
+  box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.2);
+}
+
+.ssh-modal .field input::placeholder {
+  color: var(--text-muted);
+}
+
+/* Улучшенные плейсхолдеры */
+.replace-section input::placeholder,
+.replace-section textarea::placeholder,
+.ssh-modal .field input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.ssh-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.ssh-modal-actions button {
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ssh-modal-actions .primary {
+  background: var(--accent);
+  color: #000;
+}
+
+.ssh-modal-actions .primary:hover {
+  background: #2dd4a3;
+  transform: translateY(-1px);
+}
+
+.ssh-modal-actions .secondary {
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+
+.ssh-modal-actions .secondary:hover {
+  background: var(--bg-primary);
+}
+
+/* Адаптивность */
+@media (max-width: 640px) {
+  .ssh-connection-grid {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ssh-connection-grid .field {
+    min-width: 100%;
+  }
+
+  .ssh-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .ssh-actions button {
+    width: 100%;
+  }
+
+  .ssh-modal {
+    padding: 20px;
+  }
+}
+
+/* ==================== Replace Tool styles (COMPACT) ==================== */
+
+.replace-tool-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-top: 16px;
+}
+
+/* Настройки (2 строки сверху) */
+.replace-config {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.replace-config-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.config-input {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 13px;
+  background: var(--bg-primary);
+  border: 2px solid var(--accent);
+  border-radius: 6px;
+  color: var(--text-primary);
+  transition: all 0.2s ease;
+  box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.08);
+}
+
+.config-input:hover {
+  border-color: #2dd4a3;
+  box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.12);
+}
+
+.config-input:focus {
+  outline: none;
+  border-color: #22c55e;
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.2);
+}
+
+.config-input:disabled {
+  background: var(--bg-primary);
+  border-color: var(--border);
+  box-shadow: none;
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-compact {
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  min-width: 110px;
+}
+
+.btn-compact.secondary {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+
+.btn-compact.secondary:hover:not(:disabled) {
+  background: var(--bg-primary);
+}
+
+.btn-compact:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Основная сетка (3 поля как на референсе) */
+.replace-main-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+/* Поле 1: Файлы (слева, большое) */
+.replace-field-large {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.replace-field-large label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.files-textarea {
+  min-height: 250px;
+  max-height: 250px;
+  overflow-y: auto;
+  padding: 12px;
+  background: var(--bg-primary);
+  border: 2px solid var(--accent);
+  border-radius: 8px;
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.08);
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: 'Courier New', monospace;
+}
+
+/* Поля 2 и 3 (стек справа) */
+.replace-field-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.replace-field-small,
+.replace-field-medium {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.replace-field-small label,
+.replace-field-medium label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.replace-field-small textarea {
+  min-height: 60px;
+  max-height: 60px;
+  resize: none;
+}
+
+.replace-field-medium textarea {
+  min-height: 178px;
+  max-height: 178px;
+  resize: none;
+}
+
+.replace-field-small textarea,
+.replace-field-medium textarea {
+  padding: 10px 12px;
+  font-size: 13px;
+  background: var(--bg-primary);
+  border: 2px solid var(--accent);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-family: 'Courier New', monospace;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.08);
+}
+
+.replace-field-small textarea:hover,
+.replace-field-medium textarea:hover {
+  border-color: #2dd4a3;
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.12);
+}
+
+.replace-field-small textarea:focus,
+.replace-field-medium textarea:focus {
+  outline: none;
+  border-color: #22c55e;
+  box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.2);
+}
+
+.replace-field-small textarea:disabled,
+.replace-field-medium textarea:disabled {
+  background: var(--bg-primary);
+  border-color: var(--border);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.05);
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Отображение файлов в первом поле */
+.replace-file-item {
+  padding: 8px 10px;
+  background: var(--bg-secondary);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  margin-bottom: 6px;
+  font-size: 11px;
+}
+
+.replace-file-item strong {
+  display: block;
+  color: var(--text-primary);
+  margin-bottom: 3px;
+  font-size: 12px;
+}
+
+.replace-file-item code {
+  display: block;
+  color: var(--text-muted);
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  word-break: break-all;
+}
+
+/* Кнопки действий (компактная строка) */
+.replace-actions-compact {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.replace-actions-compact button {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.replace-actions-compact .primary {
+  background: var(--accent);
+  color: #000;
+}
+
+.replace-actions-compact .primary:hover:not(:disabled) {
+  background: #2dd4a3;
+  transform: translateY(-1px);
+}
+
+.replace-actions-compact .secondary {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+
+.replace-actions-compact .secondary:hover:not(:disabled) {
+  background: var(--bg-primary);
+}
+
+.replace-actions-compact button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Статус (inline) */
+.status-inline {
+  flex: 1;
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 6px 10px;
+  border-radius: 4px;
+}
+
+.status-inline.ok {
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.status-inline.error {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.status-inline.info {
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.08);
+}
+
+/* Результаты (компактные) */
+.replace-results-compact {
+  margin-top: 8px;
+  padding: 10px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  max-height: 200px;
+  overflow-y: auto;
+  display: none;
+}
+
+.replace-results-compact:not(:empty) {
+  display: block;
+}
+
+/* Адаптивность Replace Tool */
+@media (max-width: 768px) {
+  .replace-main-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .replace-field-large,
+  .replace-field-stack {
+    min-height: auto;
+  }
+}
