@@ -2,10 +2,12 @@ import io
 import logging
 import os
 import platform
+from functools import wraps
 from typing import Any, Dict
 
 from flask import Flask, jsonify, render_template, request, send_file
 
+from auth import verify_credentials, create_session_token, verify_session_token
 from logging_config import setup_logging, cleanup_old_job_logs, get_job_log_path
 from tabs import get_default_module, get_module, get_registered_modules
 from tabs.seo_checker.config import (
@@ -31,6 +33,20 @@ except ImportError:  # pragma: no cover - optional
 
 
 job_manager = JobManager()
+
+
+def require_auth(f):
+    """Декоратор для защиты API endpoints - требует валидный токен."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Получаем токен из cookie
+        token = request.cookies.get("auth_token")
+
+        if not token or not verify_session_token(token):
+            return jsonify({"error": "Unauthorized", "auth_required": True}), 401
+
+        return f(*args, **kwargs)
+    return decorated_function
 
 
 def create_app() -> Flask:
@@ -65,7 +81,53 @@ def create_app() -> Flask:
     def ssh_tools():
         return render_tool_page("ssh_tools")
 
+    # ==================== Auth API ====================
+    @app.post("/api/auth/login")
+    def auth_login():
+        """Аутентификация пользователя."""
+        payload = request.get_json(force=True, silent=True) or {}
+        username = payload.get("username", "").strip()
+        password = payload.get("password", "").strip()
+
+        if not username or not password:
+            return jsonify({"error": "Username and password required"}), 400
+
+        # Проверка учетных данных
+        if verify_credentials(username, password):
+            token = create_session_token()
+            response = jsonify({"success": True, "token": token})
+            # Устанавливаем cookie с токеном (30 дней)
+            response.set_cookie(
+                "auth_token",
+                token,
+                max_age=30 * 24 * 60 * 60,  # 30 дней
+                httponly=True,
+                samesite="Lax"
+            )
+            return response
+        else:
+            return jsonify({"error": "Invalid credentials"}), 401
+
+    @app.post("/api/auth/verify")
+    def auth_verify():
+        """Проверка валидности токена."""
+        token = request.cookies.get("auth_token")
+
+        if token and verify_session_token(token):
+            return jsonify({"authenticated": True})
+        else:
+            return jsonify({"authenticated": False}), 401
+
+    @app.post("/api/auth/logout")
+    def auth_logout():
+        """Выход из системы."""
+        response = jsonify({"success": True})
+        response.set_cookie("auth_token", "", max_age=0)
+        return response
+
+    # ==================== Protected API ====================
     @app.post("/api/job")
+    @require_auth
     def create_job():
         payload: Dict[str, Any] = request.get_json(force=True, silent=True) or {}
         raw_urls = payload.get("urls", "")
@@ -97,6 +159,7 @@ def create_app() -> Flask:
         return jsonify({"job_id": job.id})
 
     @app.get("/api/job/<job_id>")
+    @require_auth
     def job_status(job_id: str):
         job = job_manager.get(job_id)
         if not job:
@@ -105,11 +168,13 @@ def create_app() -> Flask:
         return jsonify(snapshot)
 
     @app.post("/api/job/<job_id>/stop")
+    @require_auth
     def stop_job(job_id: str):
         ok = job_manager.stop(job_id)
         return jsonify({"stopped": ok}), (200 if ok else 404)
 
     @app.get("/api/job/<job_id>/log")
+    @require_auth
     def download_job_log(job_id: str):
         """Скачивание лога конкретного job."""
         # Проверяем что job существует
@@ -135,6 +200,7 @@ def create_app() -> Flask:
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
+    @require_auth
     @app.get("/api/job/<job_id>/download")
     def download_csv(job_id: str):
         results = job_manager.results(job_id)
@@ -163,6 +229,7 @@ def create_app() -> Flask:
         )
 
     @app.get("/api/job/<job_id>/download-xlsx")
+    @require_auth
     def download_xlsx(job_id: str):
         results = job_manager.results(job_id)
         if results is None:
@@ -193,6 +260,7 @@ def create_app() -> Flask:
             return jsonify({"error": str(e)}), 500
 
     @app.get("/api/job/<job_id>/download-headings-xlsx")
+    @require_auth
     def download_headings_xlsx(job_id: str):
         results = job_manager.results(job_id)
         if results is None:
@@ -253,6 +321,7 @@ def create_app() -> Flask:
         return jsonify(stats)
 
     @app.post("/api/heartbeat")
+    @require_auth
     def heartbeat():
         """Регистрирует heartbeat от активной вкладки."""
         payload = request.get_json(force=True, silent=True) or {}

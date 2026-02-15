@@ -17,5 +17,3 @@ jobs:
 
       - name: Restart service
         run: sudo systemctl restart seo-checker
-        # run: sudo systemctl start seo-checker
-

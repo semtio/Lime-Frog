@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{ page_title }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}" />
 </head>
 
 <body data-default-tool="{{ selected_tool }}">
@@ -82,6 +83,54 @@
     </div>
   </div>
 
+  <!-- Модальное окно аутентификации -->
+  <div id="auth-overlay" class="auth-overlay hidden">
+    <div class="auth-modal">
+      <div class="auth-modal-header">
+        <h1 class="auth-modal-title">🔐 Вход в систему</h1>
+        <p class="auth-modal-subtitle">Lime-Frog SEO & SSH Tools</p>
+      </div>
+
+      <form id="auth-form" class="auth-form">
+        <div class="auth-field">
+          <label for="auth-username">Логин</label>
+          <input
+            type="text"
+            id="auth-username"
+            name="username"
+            autocomplete="username"
+            placeholder="Введите логин"
+            required
+          />
+        </div>
+
+        <div class="auth-field">
+          <label for="auth-password">Пароль</label>
+          <input
+            type="password"
+            id="auth-password"
+            name="password"
+            autocomplete="current-password"
+            placeholder="Введите пароль"
+            required
+          />
+        </div>
+
+        <div id="auth-error" class="auth-error"></div>
+
+        <button type="submit" id="auth-submit" class="auth-submit">
+          Войти
+        </button>
+      </form>
+
+      <div class="auth-footer">
+        <span class="auth-footer-icon">🛡️</span>
+        Защищенное соединение
+      </div>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 

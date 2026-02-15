@@ -27,3 +27,6 @@ Thumbs.db
 
 # Project specific
 broken version
+
+# Authentication (защита учетных данных)
+auth/credentials.json
