@@ -29,4 +29,4 @@ Thumbs.db
 broken version
 
 # Authentication (защита учетных данных)
-auth/credentials.json
+# auth/credentials.json
