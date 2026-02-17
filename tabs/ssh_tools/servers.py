@@ -16,7 +16,7 @@ _SERVERS_FILE = _DATA_DIR / "servers.json"
 def _ensure_storage() -> None:
     _DATA_DIR.mkdir(parents=True, exist_ok=True)
     if not _SERVERS_FILE.exists():
-        _SERVERS_FILE.write_text("{\n  \"servers\": []\n}\n", encoding="utf-8")
+        _SERVERS_FILE.write_text('{\n  "servers": []\n}\n', encoding="utf-8")
 
 
 def _load_data() -> Dict[str, List[Dict[str, str]]]:
@@ -111,6 +111,24 @@ def get_server(server_id: str) -> Optional[Dict[str, str]]:
                 "base_path": server.get("base_path", ""),
             }
     return None
+
+
+def update_server(
+    server_id: str, name: str, host: str, username: str, password: str, port: int = 22
+) -> bool:
+    """Обновить данные сервера."""
+    data = _load_data()
+    for server in data.get("servers", []):
+        if server.get("id") == server_id:
+            server["name"] = name
+            server["host"] = host
+            server["port"] = int(port)
+            server["username_enc"] = encrypt_value(username)
+            server["password_enc"] = encrypt_value(password)
+            server["updated_at"] = _now_iso()
+            _save_data(data)
+            return True
+    return False
 
 
 def update_server_base_path(server_id: str, base_path: str) -> bool:

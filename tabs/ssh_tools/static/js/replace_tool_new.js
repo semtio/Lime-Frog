@@ -274,24 +274,15 @@
       }
 
       const searchText = elements.searchInput.value.trim();
-      const replaceText = elements.replacementsTextarea.value; // НЕ trim, чтобы сохранить пустые строки
+      const replaceText = elements.replacementsTextarea.value.trim();
 
       if (!searchText) {
         setStatus('⚠️ Укажите текст для поиска', 'error');
         return;
       }
 
-      // Разрешаем пустую замену (удаление строк)
-
-      // Парсить строки замены (по одной на файл)
-      // НЕ фильтруем пустые строки - они означают удаление
-      const replaceLines = replaceText.split('\n');
-
-      if (replaceLines.length !== validatedDomains.length) {
-        setStatus(
-          `⚠️ Количество строк замены (${replaceLines.length}) не совпадает с количеством файлов (${validatedDomains.length})`,
-          'error'
-        );
+      if (!replaceText) {
+        setStatus('⚠️ Укажите текст для замены', 'error');
         return;
       }
 
@@ -299,7 +290,8 @@
       if (!confirm(
         `Вы уверены? Будут обработаны ${validatedDomains.length} файл(ов).\n\n` +
         `Текст для поиска: ${searchText}\n` +
-        `Каждый файл получит свою замену (по строке на файл).`
+        `Текст для замены: ${replaceText}\n\n` +
+        `Бэкапы будут созданы автоматически.`
       )) {
         return;
       }
@@ -312,35 +304,22 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            files: validatedDomains.map((path, index) => ({
-              full_path: path,
-              replace_text: replaceLines[index]
-            })),
+            files: validatedDomains.map(path => ({ full_path: path })),
             search_text: searchText,
+            replace_text: replaceText,
           }),
         });
 
         const data = await response.json();
 
-        // Показать детальные результаты ВСЕГДА (даже при частичных ошибках)
-        if (data.details && data.details.length > 0) {
-          renderExecuteResults(data.details);
-        }
-
         if (data.ok) {
+          renderExecuteResults(data.details);
           setStatus(
             `✓ Замена завершена! Успешно: ${data.success_count}, Ошибок: ${data.error_count}`,
-            'ok'
-          );
-        } else if (data.success_count > 0) {
-          // Частичный успех
-          setStatus(
-            `⚠️ Частичный успех. Успешно: ${data.success_count}, Ошибок: ${data.error_count}`,
-            'info'
+            data.error_count === 0 ? 'ok' : 'info'
           );
         } else {
-          // Полный провал
-          setStatus(`❌ ${data.error || 'Все файлы завершились ошибкой'}`, 'error');
+          setStatus(`❌ ${data.error || 'Ошибка выполнения'}`, 'error');
         }
       } catch (err) {
         setStatus(`❌ Ошибка: ${err.message}`, 'error');
@@ -363,6 +342,7 @@
             <div class="replace-result-item ${result.status === 'success' ? 'success' : 'error'}">
               <strong>${result.path || result.domain || 'N/A'}</strong>
               <p>${result.message}</p>
+              ${result.backup_path ? `<small>Бэкап: ${result.backup_path}</small>` : ''}
               ${result.replacements_count ? `<small>Заменено: ${result.replacements_count} строк</small>` : ''}
             </div>
           `).join('')}

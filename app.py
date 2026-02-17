@@ -23,9 +23,12 @@ from tabs.seo_checker.exporters import (
     rows_to_xlsx_bytes,
 )
 from tabs.seo_checker.jobs import JobManager
+from tabs.magic_links.jobs import MagicLinksJobManager, MagicLinksRuntime
 from tabs.ssh_tools.routes import register_routes as register_ssh_routes
 import tabs.seo_checker
 import tabs.ssh_tools
+import tabs.magic_links
+from job_gate import ActiveUserGate
 
 try:
     import psutil
@@ -33,11 +36,14 @@ except ImportError:  # pragma: no cover - optional
     psutil = None
 
 
-job_manager = JobManager()
+gate = ActiveUserGate()
+job_manager = JobManager(gate, max_concurrent_jobs=1, max_parallel_owner=6)
+magic_links_manager = MagicLinksJobManager(gate, max_parallel_owner=6)
 
 
 def require_auth(f):
     """Декоратор для защиты API endpoints - требует валидный токен."""
+
     @wraps(f)
     def decorated_function(*args, **kwargs):
         # Получаем токен из cookie
@@ -47,6 +53,7 @@ def require_auth(f):
             return jsonify({"error": "Unauthorized", "auth_required": True}), 401
 
         return f(*args, **kwargs)
+
     return decorated_function
 
 
@@ -103,7 +110,7 @@ def create_app() -> Flask:
                 token,
                 max_age=30 * 24 * 60 * 60,  # 30 дней
                 httponly=True,
-                samesite="Lax"
+                samesite="Lax",
             )
             return response
         else:
@@ -131,6 +138,7 @@ def create_app() -> Flask:
     @require_auth
     def create_job():
         payload: Dict[str, Any] = request.get_json(force=True, silent=True) or {}
+        session_id = payload.get("session_id") or request.cookies.get("auth_token")
         raw_urls = payload.get("urls", "")
         url_list = [line.strip() for line in str(raw_urls).splitlines() if line.strip()]
         if not url_list:
@@ -156,7 +164,7 @@ def create_app() -> Flask:
         runtime.timeout_seconds = max(3, min(runtime.timeout_seconds, 120))
         runtime.retries = max(0, min(runtime.retries, 5))
 
-        job = job_manager.create_job(url_list, check_options, runtime)
+        job = job_manager.create_job(url_list, check_options, runtime, session_id)
         return jsonify({"job_id": job.id})
 
     @app.get("/api/job/<job_id>")
@@ -188,7 +196,10 @@ def create_app() -> Flask:
 
         # Проверяем что файл существует
         if not log_path.exists():
-            return jsonify({"error": "log file not found (job may not have started yet)"}), 404
+            return (
+                jsonify({"error": "log file not found (job may not have started yet)"}),
+                404,
+            )
 
         # Отдаём файл как текст
         try:
@@ -196,7 +207,7 @@ def create_app() -> Flask:
                 log_path,
                 as_attachment=True,
                 download_name=f"seo_{job_id}.log",
-                mimetype="text/plain; charset=utf-8"
+                mimetype="text/plain; charset=utf-8",
             )
         except Exception as e:
             return jsonify({"error": str(e)}), 500
@@ -301,6 +312,109 @@ def create_app() -> Flask:
         except ImportError as e:
             return jsonify({"error": str(e)}), 500
 
+    @app.post("/api/magic-links/job")
+    @require_auth
+    def create_magic_links_job():
+        payload: Dict[str, Any] = request.get_json(force=True, silent=True) or {}
+        session_id = payload.get("session_id") or request.cookies.get("auth_token")
+        sources_raw = payload.get("sources", "")
+        targets_raw = payload.get("targets", "")
+        mode = payload.get("mode", "anchor")
+
+        def normalize_lines(raw_text: str):
+            lines = []
+            for raw_line in str(raw_text).splitlines():
+                stripped = raw_line.strip()
+                if not stripped or stripped.startswith("#"):
+                    continue
+                lines.append(stripped)
+            return lines
+
+        source_list = normalize_lines(sources_raw)
+        target_list = normalize_lines(targets_raw)
+        max_len = max(len(source_list), len(target_list))
+        pairs = []
+        for idx in range(max_len):
+            source = source_list[idx] if idx < len(source_list) else ""
+            target = target_list[idx] if idx < len(target_list) else ""
+            if source or target:
+                pairs.append((source, target))
+
+        if not pairs:
+            return jsonify({"error": "Список ссылок пуст"}), 400
+
+        if mode not in ("anchor", "alt"):
+            return jsonify({"error": "Некорректный режим"}), 400
+
+        if magic_links_manager.total_count_for_owner(session_id) >= 6:
+            return jsonify({"error": "Достигнут лимит пар (6)"}), 400
+
+        runtime_data = payload.get("runtime", {}) or {}
+        try:
+            concurrency = int(runtime_data.get("concurrency", 3))
+        except (TypeError, ValueError):
+            concurrency = 3
+        try:
+            timeout_seconds = int(runtime_data.get("timeout_seconds", 15))
+        except (TypeError, ValueError):
+            timeout_seconds = 15
+        try:
+            retries = int(runtime_data.get("retries", 2))
+        except (TypeError, ValueError):
+            retries = 2
+
+        runtime = MagicLinksRuntime(
+            concurrency=max(1, min(concurrency, 10)),
+            timeout_seconds=max(3, min(timeout_seconds, 120)),
+            retries=max(0, min(retries, 5)),
+            delay_seconds=0.5,
+        )
+
+        job = magic_links_manager.create_job(session_id, pairs, mode, runtime)
+        return jsonify({"job_id": job.id})
+
+    @app.get("/api/magic-links/job/<job_id>")
+    @require_auth
+    def magic_links_job_status(job_id: str):
+        job = magic_links_manager.get(job_id)
+        if not job:
+            return jsonify({"error": "not found"}), 404
+        snapshot = magic_links_manager.status_snapshot(job)
+        return jsonify(snapshot)
+
+    @app.post("/api/magic-links/job/<job_id>/stop")
+    @require_auth
+    def stop_magic_links_job(job_id: str):
+        ok = magic_links_manager.stop(job_id)
+        return jsonify({"stopped": ok}), (200 if ok else 404)
+
+    @app.get("/api/magic-links/job/<job_id>/download-xlsx")
+    @require_auth
+    def download_magic_links_xlsx(job_id: str):
+        data = magic_links_manager.results_xlsx_bytes(job_id)
+        if data is None:
+            return jsonify({"error": "not found"}), 404
+
+        custom_filename = request.args.get("filename", "").strip()
+        if custom_filename:
+            safe_filename = "".join(
+                c for c in custom_filename if c.isalnum() or c in ("-", "_", " ")
+            )
+            filename = (
+                f"{safe_filename}.xlsx"
+                if safe_filename
+                else f"magic-links-{job_id}.xlsx"
+            )
+        else:
+            filename = f"magic-links-{job_id}.xlsx"
+
+        return send_file(
+            io.BytesIO(data),
+            as_attachment=True,
+            download_name=filename,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+
     @app.get("/api/resource")
     def resource_usage():
         if platform.system().lower() != "linux" or not psutil:
@@ -319,6 +433,9 @@ def create_app() -> Flask:
     def get_stats():
         """Возвращает статистику: количество активных пользователей и очередь."""
         stats = job_manager.get_stats()
+        magic_stats = magic_links_manager.get_stats()
+        stats["running"] += magic_stats["running"]
+        stats["queued"] += magic_stats["queued"]
         return jsonify(stats)
 
     @app.post("/api/heartbeat")

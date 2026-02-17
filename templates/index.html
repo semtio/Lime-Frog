@@ -68,6 +68,139 @@
       </div>
     </div>
 
+    <div class="tool-view {% if selected_tool == 'magic_links' %}active{% endif %}" data-tool-view="magic_links">
+      <div class="tool-description">Ставьте ссылки по одной на строке.</div>
+      <div class="magic-links-cards" id="magic-links-cards">
+        <div class="panel magic-links-card" data-ml-card>
+          <div class="magic-links-grid">
+            <div class="field">
+              <label data-ml-for="magic-links-source" for="magic-links-source-1">Источник</label>
+              <textarea data-ml-id="magic-links-source" id="magic-links-source-1" placeholder="https://example.com/page"></textarea>
+            </div>
+            <div class="field">
+              <label data-ml-for="magic-links-target" for="magic-links-target-1">Цель</label>
+              <textarea data-ml-id="magic-links-target" id="magic-links-target-1" placeholder="https://example.com/target"></textarea>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button class="primary" data-ml-id="magic-links-start-btn" id="magic-links-start-btn-1">Старт</button>
+            <button class="danger" data-ml-id="magic-links-stop-btn" id="magic-links-stop-btn-1" disabled>Стоп</button>
+            <button class="secondary" data-ml-id="magic-links-download-xlsx-btn" id="magic-links-download-xlsx-btn-1" disabled>Скачать XLS</button>
+            <button class="secondary" data-ml-id="magic-links-clear-btn" id="magic-links-clear-btn-1" title="Очистить сохранённые данные">🗑️ Очистить</button>
+          </div>
+
+          <div class="status" data-ml-id="magic-links-status" id="magic-links-status-1">Готово к запуску</div>
+          <div class="progress-bar" aria-label="progress">
+            <div class="progress-fill" data-ml-id="magic-links-progress-fill" id="magic-links-progress-fill-1"></div>
+          </div>
+          <div class="resource" data-ml-id="magic-links-resource" id="magic-links-resource-1" style="display:none;"></div>
+
+          <button class="settings-toggle" data-ml-toggle>⚙️ Настройки</button>
+          <div class="settings" data-ml-settings>
+            <div class="grid">
+              <div class="field">
+                <label data-ml-for="magic-links-concurrency" for="magic-links-concurrency-1">Количество потоков</label>
+                <input data-ml-id="magic-links-concurrency" type="number" id="magic-links-concurrency-1" min="1" max="10" value="{{ defaults.concurrency }}" />
+              </div>
+              <div class="field">
+                <label data-ml-for="magic-links-timeout" for="magic-links-timeout-1">Таймаут (сек.)</label>
+                <input data-ml-id="magic-links-timeout" type="number" id="magic-links-timeout-1" min="3" max="120" value="{{ defaults.timeout_seconds }}" />
+              </div>
+              <div class="field">
+                <label data-ml-for="magic-links-retries" for="magic-links-retries-1">Повторы при таймауте</label>
+                <input data-ml-id="magic-links-retries" type="number" id="magic-links-retries-1" min="0" max="5" value="{{ defaults.retries }}" />
+              </div>
+              <div class="field">
+                <label data-ml-for="magic-links-filename" for="magic-links-filename-1">Название файла (необязательно)</label>
+                <input data-ml-id="magic-links-filename" type="text" id="magic-links-filename-1" placeholder="seo-check" maxlength="100" />
+              </div>
+            </div>
+            <div class="magic-links-mode">
+              <div class="magic-links-mode-title">Режим парсера</div>
+              <div class="magic-links-mode-options" role="radiogroup" aria-label="Режим парсера">
+                <label class="magic-links-mode-option">
+                  <input type="radio" data-ml-name="magic-links-mode" name="magic-links-mode-1" value="anchor" checked />
+                  <span>Анкорный текст</span>
+                </label>
+                <label class="magic-links-mode-option">
+                  <input type="radio" data-ml-name="magic-links-mode" name="magic-links-mode-1" value="alt" />
+                  <span>Alt изображений</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="magic-links-add-wrap">
+        <button type="button" class="magic-links-add" id="magic-links-add" aria-label="Добавить еще одну пару">+</button>
+      </div>
+
+      <template id="magic-links-card-template">
+        <div class="panel magic-links-card" data-ml-card>
+          <div class="magic-links-grid">
+            <div class="field">
+              <label data-ml-for="magic-links-source">Источник</label>
+              <textarea data-ml-id="magic-links-source" placeholder="https://example.com/page"></textarea>
+            </div>
+            <div class="field">
+              <label data-ml-for="magic-links-target">Цель</label>
+              <textarea data-ml-id="magic-links-target" placeholder="https://example.com/target"></textarea>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button class="primary" data-ml-id="magic-links-start-btn">Старт</button>
+            <button class="danger" data-ml-id="magic-links-stop-btn" disabled>Стоп</button>
+            <button class="secondary" data-ml-id="magic-links-download-xlsx-btn" disabled>Скачать XLS</button>
+            <button class="secondary" data-ml-id="magic-links-clear-btn" title="Очистить сохранённые данные">🗑️ Очистить</button>
+          </div>
+
+          <div class="status" data-ml-id="magic-links-status">Готово к запуску</div>
+          <div class="progress-bar" aria-label="progress">
+            <div class="progress-fill" data-ml-id="magic-links-progress-fill"></div>
+          </div>
+          <div class="resource" data-ml-id="magic-links-resource" style="display:none;"></div>
+
+          <button class="settings-toggle" data-ml-toggle>⚙️ Настройки</button>
+          <div class="settings" data-ml-settings>
+            <div class="grid">
+              <div class="field">
+                <label data-ml-for="magic-links-concurrency">Количество потоков</label>
+                <input data-ml-id="magic-links-concurrency" type="number" min="1" max="10" value="{{ defaults.concurrency }}" />
+              </div>
+              <div class="field">
+                <label data-ml-for="magic-links-timeout">Таймаут (сек.)</label>
+                <input data-ml-id="magic-links-timeout" type="number" min="3" max="120" value="{{ defaults.timeout_seconds }}" />
+              </div>
+              <div class="field">
+                <label data-ml-for="magic-links-retries">Повторы при таймауте</label>
+                <input data-ml-id="magic-links-retries" type="number" min="0" max="5" value="{{ defaults.retries }}" />
+              </div>
+              <div class="field">
+                <label data-ml-for="magic-links-filename">Название файла (необязательно)</label>
+                <input data-ml-id="magic-links-filename" type="text" placeholder="seo-check" maxlength="100" />
+              </div>
+            </div>
+            <div class="magic-links-mode">
+              <div class="magic-links-mode-title">Режим парсера</div>
+              <div class="magic-links-mode-options" role="radiogroup" aria-label="Режим парсера">
+                <label class="magic-links-mode-option">
+                  <input type="radio" data-ml-name="magic-links-mode" value="anchor" checked />
+                  <span>Анкорный текст</span>
+                </label>
+                <label class="magic-links-mode-option">
+                  <input type="radio" data-ml-name="magic-links-mode" value="alt" />
+                  <span>Alt изображений</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
+
     <div class="tool-view {% if selected_tool == 'ssh_tools' %}active{% endif %}" data-tool-view="ssh_tools">
       <div class="tool-description">Подключение к серверам по SSH и запуск команд</div>
       <div class="panel ssh-tools-panel">
@@ -89,45 +222,68 @@
             <div class="ssh-actions">
               <button class="secondary" id="ssh-add-server" type="button">Добавить</button>
               <button class="primary" id="ssh-test-connection" type="button" disabled>Тест подключения</button>
+              <button class="secondary" id="ssh-edit-server" type="button" disabled>Редактировать</button>
               <button class="danger" id="ssh-delete-server" type="button" disabled>Удалить</button>
             </div>
           </div>
           <div class="ssh-status" id="ssh-status">Готово к подключению</div>
         </div>
 
+        <div class="ssh-console-card">
+          <div class="ssh-console-header">
+            <div class="ssh-console-title">Мини-консоль</div>
+            <div class="ssh-console-paths" id="ssh-console-paths"></div>
+            <div class="ssh-console-hint">Команды выполняются через SSH (bash)</div>
+          </div>
+          <div class="ssh-console-body">
+            <div class="field">
+              <label for="ssh-command-input">Скрипт</label>
+              <textarea
+                id="ssh-command-input"
+                class="ssh-console-textarea"
+                placeholder="echo 'backup start' && date\n# ваш bash-скрипт"
+                disabled></textarea>
+            </div>
+            <div class="ssh-console-actions">
+              <button class="primary" id="ssh-command-run" type="button" disabled>Отправить</button>
+              <div class="ssh-console-status" id="ssh-command-status"></div>
+            </div>
+            <pre class="ssh-console-output" id="ssh-command-output" aria-live="polite"></pre>
+          </div>
+        </div>
+
         <!-- Replace Tool: Компактный интерфейс -->
         <div class="replace-tool-panel" id="replace-tool-panel">
-          <!-- Настройки сервера (компактно) -->
-          <div class="replace-config">
-            <div class="replace-config-row">
-              <input
-                id="replace-base-path"
-                name="ssh_base_path"
-                type="text"
-                placeholder="Базовый путь: /home/admin/web/"
-                class="config-input"
-                autocomplete="on" />
-              <button id="replace-confirm-base-path" class="btn-compact secondary" type="button">✓ Подтвердить</button>
-            </div>
-            <div class="replace-config-row">
-              <input
-                id="replace-relative-path"
-                name="ssh_relative_path"
-                type="text"
-                placeholder="Относительный путь: public_html/header.php"
-                class="config-input"
-                autocomplete="on"
-                disabled />
-              <button id="replace-find-files" class="btn-compact secondary" type="button" disabled>🔍 Найти</button>
-            </div>
-          </div>
-
-          <!-- Основные 3 поля (как на референсе) -->
+<!-- Replace Tool: Основные поля -->
           <div class="replace-main-grid">
-            <!-- Поле 1: Файлы (слева, большое) -->
+            <!-- Поле 1: Домены (слева, большое) -->
             <div class="replace-field-large">
-              <label>① Найденные файлы</label>
-              <div id="replace-files-list" class="files-textarea"></div>
+              <label>① Домены</label>
+              <textarea
+                id="replace-domains-list"
+                placeholder="Один путь на строку&#10;/home/admin/web/example.com/public_html/header.php&#10;/home/admin/web/another.com/public_html/header.php"
+                class="domains-textarea"></textarea>
+
+              <!-- Кнопки под TextArea -->
+              <div class="replace-domains-actions">
+                <button id="replace-validate-domains" class="secondary" type="button">✓ Проверить</button>
+              </div>
+
+              <!-- Счётчик статистики -->
+              <div id="replace-domains-stats" class="stats-display" style="display: none;">
+                <span class="stat-found">✓ Найдено: <strong id="stat-found-count">0</strong></span>
+                <span class="stat-errors">⚠️ Ошибок: <strong id="stat-errors-count">0</strong></span>
+              </div>
+
+              <!-- Поле ненайденных doменов -->
+              <div id="replace-errors-section" class="errors-section" style="display: none;">
+                <label>Файлы не найдены:</label>
+                <textarea
+                  id="replace-not-found-domains"
+                  readonly
+                  class="not-found-textarea"
+                  placeholder="Здесь появятся пути, которые не найдены на сервере"></textarea>
+              </div>
             </div>
 
             <!-- Поля 2 и 3 (справа, стек) -->
@@ -206,7 +362,7 @@
         <p class="auth-modal-subtitle">Lime-Frog SEO & SSH Tools</p>
       </div>
 
-      <form id="auth-form" class="auth-form">
+      <form id="auth-form" class="auth-form" method="post" action="">
         <div class="auth-field">
           <label for="auth-username">Логин</label>
           <input

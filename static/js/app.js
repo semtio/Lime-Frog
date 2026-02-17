@@ -10,6 +10,9 @@ const resourceEl = document.getElementById('resource');
 const badge = document.getElementById('job-badge');
 const settingsBlock = document.getElementById('settings');
 const toggleSettings = document.getElementById('toggle-settings');
+const magicLinksCards = document.getElementById('magic-links-cards');
+const magicLinksAddBtn = document.getElementById('magic-links-add');
+const magicLinksCardTemplate = document.getElementById('magic-links-card-template');
 const statsDisplay = document.getElementById('stats-display');
 const activeUsersEl = document.getElementById('active-users');
 const queueCountEl = document.getElementById('queue-count');
@@ -171,6 +174,241 @@ toggleSettings.addEventListener('click', () => {
   settingsBlock.classList.toggle('open');
 });
 
+function initMagicLinksCard(card) {
+  if (card.dataset.mlBound === '1') return;
+  card.dataset.mlBound = '1';
+
+  const toggle = card.querySelector('[data-ml-toggle]');
+  const settings = card.querySelector('[data-ml-settings]');
+  if (toggle && settings) {
+    toggle.addEventListener('click', () => {
+      settings.classList.toggle('open');
+    });
+  }
+
+  bindMagicLinksActions(card);
+}
+
+function applyMagicLinksIndex(card, index) {
+  card.querySelectorAll('[data-ml-id]').forEach(el => {
+    const baseId = el.dataset.mlId;
+    el.id = `${baseId}-${index}`;
+  });
+
+  card.querySelectorAll('[data-ml-for]').forEach(label => {
+    const baseFor = label.dataset.mlFor;
+    label.setAttribute('for', `${baseFor}-${index}`);
+  });
+
+  card.querySelectorAll('[data-ml-name]').forEach(input => {
+    const baseName = input.dataset.mlName;
+    input.name = `${baseName}-${index}`;
+  });
+}
+
+if (magicLinksCards) {
+  const initialCards = magicLinksCards.querySelectorAll('[data-ml-card]');
+  initialCards.forEach((card, idx) => {
+    applyMagicLinksIndex(card, idx + 1);
+    initMagicLinksCard(card);
+  });
+  updateMagicLinksAddState();
+}
+
+if (magicLinksAddBtn && magicLinksCardTemplate && magicLinksCards) {
+  magicLinksAddBtn.addEventListener('click', () => {
+    if (magicLinksCards.querySelectorAll('[data-ml-card]').length >= 6) {
+      updateMagicLinksAddState();
+      return;
+    }
+    const nextIndex = magicLinksCards.querySelectorAll('[data-ml-card]').length + 1;
+    const fragment = magicLinksCardTemplate.content.cloneNode(true);
+    const card = fragment.querySelector('[data-ml-card]');
+    applyMagicLinksIndex(card, nextIndex);
+    initMagicLinksCard(card);
+    magicLinksCards.appendChild(fragment);
+    updateMagicLinksAddState();
+  });
+}
+
+const magicLinksPollers = new Map();
+
+function updateMagicLinksAddState() {
+  if (!magicLinksAddBtn || !magicLinksCards) return;
+  const count = magicLinksCards.querySelectorAll('[data-ml-card]').length;
+  magicLinksAddBtn.disabled = count >= 6;
+  magicLinksAddBtn.title = count >= 6 ? 'Достигнут лимит (6)' : 'Добавить еще одну пару';
+}
+
+function getMagicLinksElements(card) {
+  return {
+    source: card.querySelector('[data-ml-id="magic-links-source"]'),
+    target: card.querySelector('[data-ml-id="magic-links-target"]'),
+    startBtn: card.querySelector('[data-ml-id="magic-links-start-btn"]'),
+    stopBtn: card.querySelector('[data-ml-id="magic-links-stop-btn"]'),
+    downloadBtn: card.querySelector('[data-ml-id="magic-links-download-xlsx-btn"]'),
+    clearBtn: card.querySelector('[data-ml-id="magic-links-clear-btn"]'),
+    status: card.querySelector('[data-ml-id="magic-links-status"]'),
+    progressFill: card.querySelector('[data-ml-id="magic-links-progress-fill"]'),
+    filename: card.querySelector('[data-ml-id="magic-links-filename"]'),
+    concurrency: card.querySelector('[data-ml-id="magic-links-concurrency"]'),
+    timeout: card.querySelector('[data-ml-id="magic-links-timeout"]'),
+    retries: card.querySelector('[data-ml-id="magic-links-retries"]')
+  };
+}
+
+function setMagicLinksStatus(card, text) {
+  const elements = getMagicLinksElements(card);
+  if (elements.status) elements.status.textContent = text;
+}
+
+function setMagicLinksProgress(card, completed, total) {
+  const elements = getMagicLinksElements(card);
+  if (!elements.progressFill) return;
+  const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+  elements.progressFill.style.width = pct + '%';
+}
+
+function getMagicLinksMode(card) {
+  const selected = card.querySelector('input[data-ml-name="magic-links-mode"]:checked');
+  return selected ? selected.value : 'anchor';
+}
+
+function getMagicLinksRuntime(card) {
+  const elements = getMagicLinksElements(card);
+  return {
+    concurrency: Number(elements.concurrency?.value || 3),
+    timeout_seconds: Number(elements.timeout?.value || 15),
+    retries: Number(elements.retries?.value || 2)
+  };
+}
+
+async function startMagicLinksJob(card) {
+  const elements = getMagicLinksElements(card);
+  if (!elements.source || !elements.target) return;
+
+  const sources = elements.source.value.trim();
+  const targets = elements.target.value.trim();
+  if (!sources && !targets) {
+    setMagicLinksStatus(card, 'Добавьте хотя бы одну пару');
+    return;
+  }
+
+  const payload = {
+    session_id: sessionId,
+    sources,
+    targets,
+    mode: getMagicLinksMode(card),
+    runtime: getMagicLinksRuntime(card)
+  };
+
+  elements.startBtn.disabled = true;
+  elements.stopBtn.disabled = false;
+  elements.downloadBtn.disabled = true;
+  setMagicLinksStatus(card, 'Запуск...');
+
+  try {
+    const res = await fetch('/api/magic-links/job', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Ошибка запуска');
+    card.dataset.mlJobId = data.job_id;
+    pollMagicLinksStatus(card);
+  } catch (err) {
+    setMagicLinksStatus(card, err.message);
+    elements.startBtn.disabled = false;
+    elements.stopBtn.disabled = true;
+  }
+}
+
+async function pollMagicLinksStatus(card) {
+  const jobId = card.dataset.mlJobId;
+  if (!jobId) return;
+
+  if (magicLinksPollers.has(card)) {
+    clearInterval(magicLinksPollers.get(card));
+  }
+
+  const elements = getMagicLinksElements(card);
+  const fetchStatus = async () => {
+    const res = await fetch(`/api/magic-links/job/${jobId}`);
+    if (res.status === 404) {
+      clearInterval(magicLinksPollers.get(card));
+      magicLinksPollers.delete(card);
+      delete card.dataset.mlJobId;
+      setMagicLinksStatus(card, 'Задача не найдена');
+      elements.startBtn.disabled = false;
+      elements.stopBtn.disabled = true;
+      elements.downloadBtn.disabled = true;
+      return;
+    }
+    const data = await res.json();
+    const { status, completed, total, error, queue_position } = data;
+    setMagicLinksProgress(card, completed, total);
+
+    let statusText = '';
+    if (status === 'queued' && queue_position > 0) {
+      statusText = `В очереди: позиция ${queue_position}`;
+    } else if (status === 'running') {
+      statusText = `Статус: выполняется. ${completed}/${total}`;
+    } else {
+      statusText = `Статус: ${status}. Выполнено ${completed}/${total}`;
+    }
+    if (error) statusText += `, ошибка: ${error}`;
+    setMagicLinksStatus(card, statusText);
+
+    elements.stopBtn.disabled = status !== 'running' && status !== 'queued';
+    if (status === 'completed' || status === 'stopped' || status === 'error') {
+      clearInterval(magicLinksPollers.get(card));
+      magicLinksPollers.delete(card);
+      elements.startBtn.disabled = false;
+      elements.downloadBtn.disabled = !data.has_results;
+    }
+  };
+
+  await fetchStatus();
+  const timer = setInterval(fetchStatus, 2000);
+  magicLinksPollers.set(card, timer);
+}
+
+async function stopMagicLinksJob(card) {
+  const jobId = card.dataset.mlJobId;
+  if (!jobId) return;
+  await fetch(`/api/magic-links/job/${jobId}/stop`, { method: 'POST' });
+  setMagicLinksStatus(card, 'Остановка...');
+}
+
+function downloadMagicLinksXlsx(card) {
+  const jobId = card.dataset.mlJobId;
+  if (!jobId) return;
+  const elements = getMagicLinksElements(card);
+  const customName = elements.filename?.value.trim();
+  const url = customName
+    ? `/api/magic-links/job/${jobId}/download-xlsx?filename=${encodeURIComponent(customName)}`
+    : `/api/magic-links/job/${jobId}/download-xlsx`;
+  window.location.href = url;
+}
+
+function clearMagicLinksCard(card) {
+  const elements = getMagicLinksElements(card);
+  if (elements.source) elements.source.value = '';
+  if (elements.target) elements.target.value = '';
+  if (elements.progressFill) elements.progressFill.style.width = '0%';
+  if (elements.downloadBtn) elements.downloadBtn.disabled = true;
+  setMagicLinksStatus(card, 'Готово к запуску');
+}
+
+function bindMagicLinksActions(card) {
+  const elements = getMagicLinksElements(card);
+  elements.startBtn?.addEventListener('click', () => startMagicLinksJob(card));
+  elements.stopBtn?.addEventListener('click', () => stopMagicLinksJob(card));
+  elements.downloadBtn?.addEventListener('click', () => downloadMagicLinksXlsx(card));
+  elements.clearBtn?.addEventListener('click', () => clearMagicLinksCard(card));
+}
+
 // ========== Функция для обновления состояния кнопок переключения ==========
 function updateToggleButtons() {
   document.querySelectorAll('.toggle-all-btn').forEach(btn => {
@@ -229,6 +467,7 @@ async function startJob() {
     options[cb.dataset.option] = cb.checked;
   });
   const payload = {
+    session_id: sessionId,
     urls,
     options,
     runtime: {

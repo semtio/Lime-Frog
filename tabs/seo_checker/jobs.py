@@ -9,11 +9,13 @@ import httpx
 
 from . import checks
 from .config import CheckOptions, RuntimeOptions
+from job_gate import ActiveUserGate
 
 # Импорт из корневого модуля (два уровня вверх)
 import sys
 import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 from logging_config import create_job_logger, cleanup_job_logger, mask_sensitive_url
 
 
@@ -23,12 +25,14 @@ class Job:
         urls: List[str],
         check_options: CheckOptions,
         runtime: RuntimeOptions,
+        owner_session: str,
         on_complete_callback=None,
     ):
         self.id = uuid.uuid4().hex
         self.urls = urls
         self.check_options = check_options
         self.runtime = runtime
+        self.owner_session = owner_session
         self.status: str = "queued"  # Изменено с "pending" на "queued"
         self.created_at = time.time()
         self.results: List[tuple[int, Dict[str, str]]] = []
@@ -58,8 +62,12 @@ class Job:
         # Логируем старт job с параметрами
         enabled_checks = [k for k, v in self.check_options.to_dict().items() if v]
         job_logger.info(f"Job started: {self.total} URLs")
-        job_logger.info(f"Runtime options: timeout={self.runtime.timeout_seconds}s, retries={self.runtime.retries}, concurrency={self.runtime.concurrency}")
-        job_logger.info(f"Enabled checks ({len(enabled_checks)}): {', '.join(enabled_checks)}")
+        job_logger.info(
+            f"Runtime options: timeout={self.runtime.timeout_seconds}s, retries={self.runtime.retries}, concurrency={self.runtime.concurrency}"
+        )
+        job_logger.info(
+            f"Enabled checks ({len(enabled_checks)}): {', '.join(enabled_checks)}"
+        )
 
         start_time = time.time()
         self.status = "running"
@@ -75,9 +83,17 @@ class Job:
             else:
                 self.status = "completed"
                 duration = time.time() - start_time
-                error_count = sum(1 for _, row in self.results if "ошибка:" in row.get("Код ответа", ""))
-                job_logger.info(f"Job completed: {self.completed}/{self.total} URLs processed in {duration:.1f}s")
-                job_logger.info(f"Summary: {self.completed - error_count} OK, {error_count} errors")
+                error_count = sum(
+                    1
+                    for _, row in self.results
+                    if "ошибка:" in row.get("Код ответа", "")
+                )
+                job_logger.info(
+                    f"Job completed: {self.completed}/{self.total} URLs processed in {duration:.1f}s"
+                )
+                job_logger.info(
+                    f"Summary: {self.completed - error_count} OK, {error_count} errors"
+                )
         except Exception as exc:  # pragma: no cover - defensive
             self.error = str(exc)
             self.status = "error"
@@ -153,19 +169,34 @@ class Job:
 
 
 class JobManager:
-    def __init__(self, max_concurrent_jobs: int = 1):
+    def __init__(
+        self,
+        gate: ActiveUserGate,
+        max_concurrent_jobs: int = 1,
+        max_parallel_owner: int = 6,
+    ):
         self._jobs: Dict[str, Job] = {}
         self._lock = threading.Lock()
         self._max_concurrent = max_concurrent_jobs
         self._queue: List[str] = []  # Очередь job_id
         self._sessions: Dict[str, float] = {}  # session_id -> last_heartbeat_time
         self._session_timeout = 10  # Таймаут сессии в секундах
+        self._gate = gate
+        self._max_parallel_owner = max_parallel_owner
 
     def create_job(
-        self, urls: List[str], check_options: CheckOptions, runtime: RuntimeOptions
+        self,
+        urls: List[str],
+        check_options: CheckOptions,
+        runtime: RuntimeOptions,
+        owner_session: str,
     ) -> Job:
         job = Job(
-            urls, check_options, runtime, on_complete_callback=self._on_job_complete
+            urls,
+            check_options,
+            runtime,
+            owner_session,
+            on_complete_callback=self._on_job_complete,
         )
         with self._lock:
             self._jobs[job.id] = job
@@ -176,6 +207,9 @@ class JobManager:
 
     def _on_job_complete(self, job_id: str):
         """Обработчик завершения задачи - запускает следующую из очереди."""
+        job = self._jobs.get(job_id)
+        if job:
+            self._gate.on_finish(job.owner_session)
         with self._lock:
             self._process_queue()
 
@@ -189,21 +223,46 @@ class JobManager:
     def _process_queue(self):
         """Запускает задачи из очереди, если есть свободные слоты."""
         running_count = sum(1 for job in self._jobs.values() if job.status == "running")
+        if running_count >= self._max_concurrent:
+            return
 
-        while running_count < self._max_concurrent and self._queue:
-            job_id = self._queue[0]
+        active_owner = self._gate.active_owner()
+        queued_job_ids = list(self._queue)
+
+        if active_owner is None:
+            for job_id in queued_job_ids:
+                job = self._jobs.get(job_id)
+                if job and job.status == "queued":
+                    active_owner = job.owner_session
+                    break
+
+        if not active_owner:
+            return
+
+        for job_id in queued_job_ids:
             job = self._jobs.get(job_id)
+            if not job or job.status != "queued":
+                if job_id in self._queue:
+                    self._queue.remove(job_id)
+                continue
 
-            if job and job.status == "queued":
-                self._queue.pop(0)
-                job.queue_position = 0
-                job.start()
-                running_count += 1
-                self._update_queue_positions()
-            else:
-                # Удаляем завершенные/остановленные задачи из очереди
-                self._queue.pop(0)
-                self._update_queue_positions()
+            if job.owner_session != active_owner:
+                continue
+
+            if running_count >= self._max_concurrent:
+                break
+
+            if not self._gate.can_start(active_owner, self._max_parallel_owner):
+                break
+
+            if job_id in self._queue:
+                self._queue.remove(job_id)
+            job.queue_position = 0
+            self._gate.on_start(active_owner)
+            job.start()
+            running_count += 1
+
+        self._update_queue_positions()
 
     def get(self, job_id: str) -> Optional[Job]:
         with self._lock:
