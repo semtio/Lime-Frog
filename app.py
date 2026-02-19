@@ -5,6 +5,7 @@ import platform
 from functools import wraps
 from typing import Any, Dict
 
+import requests
 from flask import Flask, jsonify, render_template, request, send_file
 
 from auth import verify_credentials, create_session_token, verify_session_token
@@ -24,10 +25,18 @@ from tabs.seo_checker.exporters import (
 )
 from tabs.seo_checker.jobs import JobManager
 from tabs.magic_links.jobs import MagicLinksJobManager, MagicLinksRuntime
+from tabs.google_speed.jobs import (
+    GoogleSpeedJobManager,
+    GoogleSpeedRuntime,
+    PAGE_SPEED_ENDPOINT,
+    VALID_CATEGORIES,
+    VALID_STRATEGIES,
+)
 from tabs.ssh_tools.routes import register_routes as register_ssh_routes
 import tabs.seo_checker
 import tabs.ssh_tools
 import tabs.magic_links
+import tabs.google_speed
 from job_gate import ActiveUserGate
 
 try:
@@ -39,6 +48,7 @@ except ImportError:  # pragma: no cover - optional
 gate = ActiveUserGate()
 job_manager = JobManager(gate, max_concurrent_jobs=1, max_parallel_owner=6)
 magic_links_manager = MagicLinksJobManager(gate, max_parallel_owner=6)
+google_speed_manager = GoogleSpeedJobManager(gate, max_parallel_owner=6)
 
 
 def require_auth(f):
@@ -415,6 +425,154 @@ def create_app() -> Flask:
             mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
 
+    @app.post("/api/google-speed/job")
+    @require_auth
+    def create_google_speed_job():
+        payload: Dict[str, Any] = request.get_json(force=True, silent=True) or {}
+        session_id = payload.get("session_id") or request.cookies.get("auth_token")
+
+        raw_urls = payload.get("urls", "")
+        url_list = [line.strip() for line in str(raw_urls).splitlines() if line.strip()]
+        url_list = google_speed_manager.normalize_urls(url_list)
+        if not url_list:
+            return jsonify({"error": "Список URL пуст"}), 400
+
+        api_key = str(payload.get("api_key", "")).strip()
+        if not api_key:
+            return jsonify({"error": "API-ключ обязателен"}), 400
+
+        raw_strategies = payload.get("strategies", []) or []
+        strategies = [
+            item for item in raw_strategies if isinstance(item, str) and item in VALID_STRATEGIES
+        ]
+        if not strategies:
+            return jsonify({"error": "Выберите хотя бы одну стратегию"}), 400
+
+        raw_categories = payload.get("categories", []) or []
+        categories = [
+            item
+            for item in raw_categories
+            if isinstance(item, str) and item in VALID_CATEGORIES
+        ]
+        if not categories:
+            return jsonify({"error": "Выберите хотя бы одну категорию"}), 400
+
+        runtime_data = payload.get("runtime", {}) or {}
+        try:
+            concurrency = int(runtime_data.get("concurrency", 5))
+        except (TypeError, ValueError):
+            concurrency = 5
+
+        runtime = GoogleSpeedRuntime(
+            concurrency=max(1, min(concurrency, 10)),
+            request_timeout_seconds=60,
+            max_attempts_per_url=3,
+            retry_delay_seconds=15,
+        )
+
+        job = google_speed_manager.create_job(
+            owner_session=session_id,
+            urls=url_list,
+            api_key=api_key,
+            strategies=strategies,
+            categories=categories,
+            runtime=runtime,
+        )
+        return jsonify({"job_id": job.id})
+
+    @app.post("/api/google-speed/validate-key")
+    @require_auth
+    def validate_google_speed_key():
+        payload: Dict[str, Any] = request.get_json(force=True, silent=True) or {}
+        api_key = str(payload.get("api_key", "")).strip()
+        if not api_key:
+            return jsonify({"valid": False, "message": "API-ключ не указан"}), 400
+
+        params = [
+            ("url", "https://www.google.com"),
+            ("key", api_key),
+            ("strategy", "mobile"),
+            ("category", "PERFORMANCE"),
+        ]
+
+        try:
+            response = requests.get(PAGE_SPEED_ENDPOINT, params=params, timeout=30)
+            response.raise_for_status()
+            data = response.json()
+            lighthouse = data.get("lighthouseResult", {})
+            categories = lighthouse.get("categories", {})
+            has_score = categories.get("performance", {}).get("score") is not None
+            if not has_score:
+                return (
+                    jsonify(
+                        {
+                            "valid": False,
+                            "message": "Ключ принят, но score не получен (проверьте ограничения ключа)",
+                        }
+                    ),
+                    400,
+                )
+            return jsonify({"valid": True, "message": "API-ключ валиден"})
+        except requests.exceptions.HTTPError:
+            error_msg = f"HTTP ошибка {response.status_code}"
+            try:
+                error_details = response.json()
+                if "error" in error_details:
+                    error_msg += f": {error_details['error'].get('message', '')}"
+            except Exception:
+                pass
+            return jsonify({"valid": False, "message": error_msg}), 400
+        except requests.exceptions.Timeout:
+            return jsonify({"valid": False, "message": "Таймаут запроса"}), 400
+        except requests.exceptions.RequestException as exc:
+            return jsonify({"valid": False, "message": str(exc)}), 400
+        except Exception as exc:
+            return (
+                jsonify({"valid": False, "message": f"Неожиданная ошибка: {str(exc)}"}),
+                500,
+            )
+
+    @app.get("/api/google-speed/job/<job_id>")
+    @require_auth
+    def google_speed_job_status(job_id: str):
+        job = google_speed_manager.get(job_id)
+        if not job:
+            return jsonify({"error": "not found"}), 404
+        return jsonify(google_speed_manager.status_snapshot(job))
+
+    @app.post("/api/google-speed/job/<job_id>/stop")
+    @require_auth
+    def stop_google_speed_job(job_id: str):
+        ok = google_speed_manager.stop(job_id)
+        return jsonify({"stopped": ok}), (200 if ok else 404)
+
+    @app.get("/api/google-speed/job/<job_id>/download-xlsx")
+    @require_auth
+    def download_google_speed_xlsx(job_id: str):
+        data = google_speed_manager.results_xlsx_bytes(job_id)
+        if data is None:
+            return jsonify({"error": "not found"}), 404
+
+        custom_filename = request.args.get("filename", "").strip()
+        if custom_filename:
+            safe_filename = "".join(
+                c for c in custom_filename if c.isalnum() or c in ("-", "_", " ")
+            )
+            filename = (
+                f"{safe_filename}.xlsx"
+                if safe_filename
+                else f"google-speed-{job_id}.xlsx"
+            )
+        else:
+            filename = f"google-speed-{job_id}.xlsx"
+
+        return send_file(
+            io.BytesIO(data),
+            as_attachment=True,
+            download_name=filename,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+
     @app.get("/api/resource")
     def resource_usage():
         if platform.system().lower() != "linux" or not psutil:
@@ -434,8 +592,11 @@ def create_app() -> Flask:
         """Возвращает статистику: количество активных пользователей и очередь."""
         stats = job_manager.get_stats()
         magic_stats = magic_links_manager.get_stats()
+        google_speed_stats = google_speed_manager.get_stats()
         stats["running"] += magic_stats["running"]
         stats["queued"] += magic_stats["queued"]
+        stats["running"] += google_speed_stats["running"]
+        stats["queued"] += google_speed_stats["queued"]
         return jsonify(stats)
 
     @app.post("/api/heartbeat")

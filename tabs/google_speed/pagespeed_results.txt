@@ -1,0 +1,8 @@
+fragabet-azerbaycan.ink = PERFORMANCE=96
+fragabetyukle.ink = PERFORMANCE=96
+fraga-kazino.net = PERFORMANCE=96
+fraga-kazino.ink = PERFORMANCE=96
+fragabet-giris-az.com = PERFORMANCE=96
+fragabetgiris-az.net = PERFORMANCE=97
+fragacasino-az.live = PERFORMANCE=97
+fragabet-giris-az.live = PERFORMANCE=96

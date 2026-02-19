@@ -10,8 +10,14 @@ from .config import CheckOptions, RuntimeOptions
 from .context import CheckContext
 from .network.fetcher import fetch_with_retries, BROWSER_HEADERS
 from .network.url import normalize_url
-from .parsers.meta import extract_title, extract_description, extract_html_lang, extract_canonical, parse_robots_meta
-from .checkers.seo.sitemap import check_sitemap
+from .parsers.meta import (
+    extract_title,
+    extract_description,
+    extract_html_lang,
+    extract_canonical,
+    parse_robots_meta,
+)
+from .checkers.seo.sitemap import check_sitemap, get_pages_from_sitemap
 from .checkers.seo.robots import check_robots
 from .checkers.seo.http import check_404
 from .checkers.seo.headings import check_h1, collect_headings, find_heading_duplicates
@@ -32,6 +38,7 @@ CSV_COLUMNS_BASE = [
     "Description",
     "Description Длина",
     "Sitemap 200",
+    "Страницы сайта",
     "Robots 200",
     "Robots Disallow",
     "Robots Sitemap",
@@ -74,6 +81,9 @@ def get_active_columns(check_options: CheckOptions, max_alts: int = 0) -> List[s
 
     if check_options.check_sitemap:
         cols.append("Sitemap 200")
+
+    if check_options.check_pages_from_sitemap:
+        cols.append("Страницы сайта")
 
     if check_options.check_robots:
         cols.extend(["Robots 200", "Robots Disallow", "Robots Sitemap"])
@@ -228,6 +238,9 @@ async def run_all_checks(
     # Выполнить проверки с передачей контекста
     if check_options.check_sitemap:
         result["Sitemap 200"] = await check_sitemap(ctx)
+
+    if check_options.check_pages_from_sitemap:
+        result["Страницы сайта"] = await get_pages_from_sitemap(ctx)
 
     if check_options.check_robots:
         robots_result = await check_robots(ctx)

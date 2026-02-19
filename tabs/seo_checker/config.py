@@ -35,6 +35,9 @@ class CheckOptions:
     html_track_media: bool = False  # figure, figcaption
     html_track_other: bool = False  # address, time
 
+    # Парсинг страниц из sitemap
+    check_pages_from_sitemap: bool = False
+
     # Проверка CMS
     check_cms: bool = True
 
@@ -76,6 +79,8 @@ CHECK_LABELS = {
     "html_track_semantic": "Семантика (main, section, article, header, footer, nav, aside)",
     "html_track_media": "Медиа (figure, figcaption)",
     "html_track_other": "Другое (address, time)",
+    # Парсинг страниц из sitemap
+    "check_pages_from_sitemap": "Страницы сайта",
     # Проверка CMS
     "check_cms": "Проверка CMS",
 }
