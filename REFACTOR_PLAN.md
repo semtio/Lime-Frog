@@ -1,557 +1,626 @@
-# План рефакторинга SEO-чекера на модульную архитектуру
+# План рефакторинга: Переход к модульной архитектуре
 
-**Дата:** 13.02.2026
-**Цель:** Переход на модульную архитектуру без изменения функциональности
-**Ответственность:** Разработчик — рефакторинг; Заказчик — функциональное тестирование
-
----
-
-## 📋 ТЕКУЩЕЕ СОСТОЯНИЕ
-
-### Структура проекта:
-```
-Lime-Frog/
-├── app.py (222 строк) — Flask + все роуты + создание Job
-├── templates/
-│   └── index.html (871 строка) — монолитный HTML (CSS+JS inline)
-├── site_checker/
-│   ├── checks.py (637 строк) — ВСЕ проверки + оркестратор run_all_checks
-│   ├── config.py (85 строк) — CheckOptions + RuntimeOptions + CHECK_LABELS
-│   ├── jobs.py (230 строк) — JobManager + Job
-│   └── exporters.py (216 строк) — rows_to_csv_bytes / rows_to_xlsx_bytes
-└── static/ (не существует)
-```
-
-### Проблемы текущей архитектуры:
-- ❌ `checks.py` — монолит 637 строк (10 проверок + утилиты в одном файле)
-- ❌ `index.html` — 500+ строк инлайн-CSS + 300+ строк инлайн-JS
-- ❌ Изменение одной проверки может повредить другие
-- ❌ Сложно добавлять новые модули (WP, Forge)
-- ❌ Нет точек расширения (registry, hooks)
-
-### Что нельзя ломать:
-- ✅ Flask маршруты и способ запуска (`start.py`)
-- ✅ Ключи `CheckOptions` и связь с `data-option` во фронте
-- ✅ Формат CSV/XLS (exporters.py поведение)
-- ✅ Логика появления колонок через чекбоксы (`get_active_columns()`)
-- ✅ Визуальный внешний вид и UX
+## Цель
+Преобразовать монолитную структуру с централизованными `templates/` и `static/` в модульную архитектуру, где каждая вкладка (модуль) является **самодостаточной** с собственными шаблонами, стилями и скриптами.
 
 ---
 
-## 🎯 ЦЕЛЕВАЯ СТРУКТУРА
+## Текущая проблема
 
-### Новая архитектура:
+### Сейчас:
 ```
-Lime-Frog/
-├── app.py (без изменений)
-├── start.py (без изменений)
-├── requirements.txt (без изменений)
-│
-├── tabs/                           ← ТОП-УРОВЕНЬ: контейнер для разных модулей
-│   ├── __init__.py
-│   └── seo_checker/                ← Каркас для будущего переезда SEO
-│       └── __init__.py
-│
-├── templates/
-│   ├── index.html (только HTML+подключения)
-│   └── partials/                   ← Новое: разбитый шаблон
-│       ├── runtime_settings.html
-│       ├── checks_sections.html
-│       ├── collect_headings.html
-│       └── html_structure.html
-│
-├── static/                         ← Новое: вынесена статика
-│   ├── css/
-│   │   └── main.css               (весь inline CSS из index.html)
-│   └── js/
-│       └── app.js                 (весь inline JS из index.html)
-│
-└── site_checker/
-    ├── checks.py                  (оркестратор run_all_checks)
-    ├── config.py (без изменений)
-    ├── jobs.py (без изменений)
-    ├── exporters.py (без изменений)
-    │
-    ├── network/                   ← Новое: сетевые утилиты
-    │   ├── __init__.py
-    │   ├── fetcher.py             (fetch_with_retries, headers)
-    │   └── url.py                 (normalize_url)
-    │
-    ├── parsers/                   ← Новое: общие парсеры
-    │   ├── __init__.py
-    │   └── meta.py                (extract_title, extract_description и т.д.)
-    │
-    └── checkers/                  ← Новое: независимые модули проверок
-        ├── __init__.py
-        ├── seo/
-        │   ├── __init__.py
-        │   ├── metadata.py        (Title, Description, Lang, Canonical, Robots-meta)
-        │   ├── headings.py        (H1 + collect + дубли)
-        │   ├── images.py          (Images + Alts)
-        │   ├── structure.py       (HTML структура)
-        │   ├── sitemap.py
-        │   ├── robots.py
-        │   └── http.py            (Status codes, 404, redirects)
-        └── cms/
-            ├── __init__.py
-            └── detect.py          (check_cms)
+templates/
+  index.html          ← 700+ строк, содержит ВСЕ вкладки
+  partials/           ← Только для seo_checker
+static/
+  css/
+    main.css          ← Общие стили
+  js/
+    app.js            ← Логика seo_checker
+    google_speed.js   ← Логика google_speed
+tabs/
+  seo_checker/        ← Только Python-логика
+  google_speed/       ← Только Python-логика
+  magic_links/        ← Только Python-логика
+  ssh_tools/          ← УЖЕ Blueprint с templates/static!
 ```
 
----
-
-## 📝 ЭТАП 1: ВЫНЕСТИ СТАТИКУ (CSS + JS)
-
-### Что делать:
-1. **Создать файлы:**
-   - `static/css/main.css` ← скопировать весь `<style>...</style>` из index.html
-   - `static/js/app.js` ← скопировать весь `<script>...</script>` из index.html
-
-2. **В `index.html` оставить:**
-   - `<!DOCTYPE html>` и теги head/body
-   - Все структурные элементы: `<div class="container">`, `<header>`, `<div class="panel">` и т.д.
-   - Все `data-option="{{ key }}"`, `id="urls"`, классы (без изменений!)
-   - Вместо инлайн CSS: `<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">`
-   - Вместо инлайн JS: `<script src="{{ url_for('static', filename='js/app.js') }}"></script>`
-
-3. **Без изменений:**
-   - id/class всех элементов
-   - data-* атрибуты
-   - структура Jinja2 переменных ({{ checks }}, {% for key %})
-
-### Файлы для изменения:
-- ✏️ `templates/index.html` (871 → ~200 строк)
-- ✏️ `app.py` (добавить `app.static_folder = 'static'` если нужно)
-- 📝 `static/css/main.css` (создать)
-- 📝 `static/js/app.js` (создать)
-
-### Критерий готовности:
-- ✅ Проект запускается без ошибок
-- ✅ UI выглядит идентично
-- ✅ Все кнопки работают (Старт, Стоп, Скачать CSV, etc.)
-- ✅ Чекбоксы работают, результаты появляются
+### Проблемы:
+1. **index.html растет бесконтрольно** — добавление каждой новой вкладки = +100-200 строк
+2. **Невозможно переиспользовать модули** — нельзя скопировать `google_speed/` в другой проект
+3. **Сложность поддержки** — один файл для всех вкладок
+4. **Непоследовательность** — ssh_tools уже Blueprint, остальные нет
 
 ---
 
-## 📝 ЭТАП 2: РАЗБИТЬ ШАБЛОНЫ НА PARTIALS
+## Целевая архитектура
 
-### Что делать:
-1. **Создать `templates/partials/`**
+### После рефакторинга:
+```
+templates/
+  base.html           ← Базовый шаблон: <head>, header, auth модалки, общие скрипты
 
-2. **Создать 4 файла partials:**
+tabs/
+  seo_checker/
+    __init__.py       ← Blueprint: seo_checker_bp
+    jobs.py
+    checks.py
+    exporters.py
+    templates/
+      seo_checker.html      ← Только HTML этой вкладки
+    static/
+      css/
+        seo_checker.css     ← Стили только для этой вкладки
+      js/
+        seo_checker.js      ← Логика только для этой вкладки
 
-   **`partials/runtime_settings.html`** — параметры запуска
-   ```html
-   <div class="grid">
-     <div class="field">
-       <label for="concurrency">{{ labels.get('concurrency', 'Concurrency') }}</label>
-       <input type="number" id="concurrency" value="{{ defaults.concurrency }}" />
-     </div>
-     <!-- timeout, retries, filename -->
-   </div>
-   ```
+  google_speed/
+    __init__.py       ← Blueprint: google_speed_bp
+    jobs.py
+    exporters.py
+    templates/
+      google_speed.html
+    static/
+      css/
+        google_speed.css
+      js/
+        google_speed.js
 
-   **`partials/checks_sections.html`** — три секции: Main, Headings, HTML Structure
-   ```html
-   <!-- Просто перенести <div class="checks-section"> из index.html -->
-   ```
+  magic_links/
+    __init__.py       ← Blueprint: magic_links_bp
+    jobs.py
+    exporters.py
+    templates/
+      magic_links.html
+    static/
+      css/
+        magic_links.css
+      js/
+        magic_links.js
 
-   **`partials/collect_headings.html`** — кнопка "Скачать XLS" для заголовков
+  ssh_tools/
+    ← Уже готов, ничего не менять!
 
-   **`partials/html_structure.html`** — остальное
+static/
+  css/
+    base.css          ← Только общие стили (header, badges, модалки)
+  js/
+    base.js           ← Только общая логика (переключение вкладок, auth, stats)
+```
 
-3. **В `index.html` оставить:**
-   ```html
-   {% include 'partials/runtime_settings.html' %}
-   {% include 'partials/checks_sections.html' %}
-   {% include 'partials/collect_headings.html' %}
-   {% include 'partials/html_structure.html' %}
-   ```
-
-4. **Без изменений:**
-   - Всё остаётся на месте (id/class/data-option)
-   - DOM структура не меняется
-   - Jinja2 переменные передаются в partials
-
-### Файлы для изменения:
-- ✏️ `templates/index.html` (переделать на набор include)
-- 📝 `templates/partials/runtime_settings.html` (создать)
-- 📝 `templates/partials/checks_sections.html` (создать)
-- 📝 `templates/partials/collect_headings.html` (создать)
-- 📝 `templates/partials/html_structure.html` (создать)
-
-### Критерий готовности:
-- ✅ HTML всё ещё валидный
-- ✅ UI работает идентично
-- ✅ Чекбоксы группируются корректно (toggle-all по группам)
-- ✅ Формы принимают данные и отправляют на бэк
-
----
-
-## 📝 ЭТАП 3: ВЫНЕСТИ СЕТЕВЫЕ УТИЛИТЫ И ПАРСЕРЫ
-
-### Что делать:
-
-1. **Создать `site_checker/network/` папку**
-
-   **`site_checker/network/__init__.py`** — пусто или re-export
-
-   **`site_checker/network/fetcher.py`:**
-   ```python
-   # Откуда берём из checks.py:
-   - USER_AGENT
-   - BROWSER_HEADERS
-   - fetch_with_retries(client, url, runtime, follow_redirects)
-   ```
-
-   **`site_checker/network/url.py`:**
-   ```python
-   # Откуда берём из checks.py:
-   - normalize_url(raw)
-   ```
-
-2. **Создать `site_checker/parsers/` папка**
-
-   **`site_checker/parsers/__init__.py`** — пусто или re-export
-
-   **`site_checker/parsers/meta.py`:**
-   ```python
-   # Откуда берём из checks.py:
-   - extract_title(soup)
-   - extract_description(soup)
-   - extract_html_lang(soup)
-   - extract_canonical(soup)
-   - parse_robots_meta(response, soup)
-   ```
-
-3. **В `checks.py` обновить импорты:**
-   ```python
-   from .network.fetcher import fetch_with_retries, BROWSER_HEADERS
-   from .network.url import normalize_url
-   from .parsers.meta import extract_title, extract_description, ...
-   ```
-
-4. **Функции остаются теми же, вызовы не меняются**
-
-### Файлы для изменения:
-- ✏️ `site_checker/checks.py` (удалить 50-100 строк функций, добавить импорты)
-- 📝 `site_checker/network/__init__.py` (создать)
-- 📝 `site_checker/network/fetcher.py` (создать)
-- 📝 `site_checker/network/url.py` (создать)
-- 📝 `site_checker/parsers/__init__.py` (создать)
-- 📝 `site_checker/parsers/meta.py` (создать)
-
-### Критерий готовности:
-- ✅ Проект запускается
-- ✅ run_all_checks() возвращает тот же результат
-- ✅ Все парсеры работают (Title, Description, Canonical и т.д.)
-- ✅ Сетевые запросы работают (fetch_with_retries)
+### Преимущества:
+✅ **Модульность** — каждую папку можно скопировать в другой проект
+✅ **Изоляция** — изменения в одной вкладке не влияют на другие
+✅ **Читаемость** — каждый шаблон ~50-100 строк вместо 2000
+✅ **Единообразие** — все вкладки работают одинаково
+✅ **Масштабируемость** — легко добавлять новые вкладки
 
 ---
 
-## 📝 ЭТАП 4: РАЗНЕСТИ ПРОВЕРКИ ПО МОДУЛЯМ
+## Пошаговый план рефакторинга
 
-### Что делать:
+### Этап 1: Подготовка базового шаблона
 
-1. **Создать `site_checker/checkers/` папка**
+#### 1.1. Создать `templates/base.html`
+**Что переносим из `index.html`:**
+- `<head>` (meta, title, общие CSS)
+- `<header>` с селектором инструментов и счетчиками
+- Модальное окно аутентификации (`#auth-overlay`)
+- Модальное окно SSH (`#ssh-modal-overlay`)
+- Общие скрипты (`auth.js`, скрипт переключения вкладок)
+- Jinja-блок для подключения модулей: `{% block content %}{% endblock %}`
 
-2. **Создать `site_checker/checkers/seo/` с файлами:**
+**Пример структуры:**
+```jinja2
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <title>{{ page_title }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}" />
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+  <header>
+    <!-- Селектор инструментов, счетчики -->
+  </header>
 
-   **`metadata.py`** — Title, Description, Canonical, Lang, Robots-meta
-   ```python
-   def check_title_and_description(soup, response, options):
-       # вызвать extract_title, extract_description, extract_canonical, parse_robots_meta
-       return {"Title": ..., "Description": ..., "Canonical": ..., ...}
-   ```
+  <div class="container">
+    {% block content %}{% endblock %}
+  </div>
 
-   **`headings.py`** — H1 count, collect H1-H6, дубли H1/H2/H3
-   ```python
-   def check_headings(soup, options):
-       # check_h1, collect_headings, find_heading_duplicates
-       return {"Кол-во H1": ..., "H1": ..., "H2": ..., "Дубли H1/H2/H3": ...}
-   ```
+  <!-- Модалки auth и ssh -->
 
-   **`images.py`** — Кол-во img, Кол-во alt, Alt-1..Alt-N
-   ```python
-   def check_images(soup, options):
-       # check_images_alt
-       return {"Кол-во img": ..., "Кол-во alt": ..., "Alt-1": ...}
-   ```
+  <script src="{{ url_for('static', filename='js/base.js') }}"></script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>
+```
 
-   **`structure.py`** — HTML структура
-   ```python
-   def check_html_structure(soup, options):
-       # build_html_structure
-       return {"HTML структура": ...}
-   ```
+#### 1.2. Создать `static/css/base.css`
+**Что переносим из `main.css`:**
+- CSS переменные (`:root`)
+- Стили header, badge, stats-display
+- Стили модалок auth и ssh
+- Общие классы: `.tool-select`, `.panel`, `.field`, `.actions`, `.button`, `.status`, `.progress-bar`
 
-   **`sitemap.py`** — Sitemap 200
-   ```python
-   async def check_sitemap_status(base_url, client, runtime, options):
-       # check_sitemap
-       return {"Sitemap 200": ...}
-   ```
+**Что НЕ переносим (оставить в модульных CSS):**
+- Специфичные стили для каждой вкладки (`.google-speed-api-help`, `.magic-links-grid`, `.replace-tool-panel`)
 
-   **`robots.py`** — Robots 200, Disallow, Sitemap
-   ```python
-   async def check_robots_status(base_url, client, runtime, options):
-       # check_robots
-       return {"Robots 200": ..., "Robots Disallow": ..., "Robots Sitemap": ...}
-   ```
+#### 1.3. Создать `static/js/base.js`
+**Что переносим из `app.js`:**
+- Переключение вкладок по URL параметру `?module=...`
+- Обновление счетчиков пользователей (`updateStats()`)
+- Логика отображения job-badge
 
-   **`http.py`** — Status codes, 404, redirects
-   ```python
-   async def check_http_info(normalized_url, response_no_follow, response, client, runtime, options):
-       # check_404, редирект обработка, status codes
-       return {"Код ответа": ..., "Редирект": ..., "Ссылка на стр.404": ...}
-   ```
-
-3. **Создать `site_checker/checkers/cms/`**
-
-   **`detect.py`** — CMS detection
-   ```python
-   async def check_cms(soup, response, client, runtime):
-       # check_cms
-       return "WordPress" / "Forge" / "Unknown"
-   ```
-
-4. **В `checks.py` обновить:**
-   ```python
-   from .checkers.seo import metadata, headings, images, structure, sitemap, robots, http
-   from .checkers.cms import detect
-
-   # run_all_checks просто вызывает эти модули:
-   metadata_result = metadata.check_title_and_description(soup, response, options)
-   result.update(metadata_result)
-   ...
-   ```
-
-### Файлы для создания:
-- 📝 `site_checker/checkers/__init__.py`
-- 📝 `site_checker/checkers/seo/__init__.py`
-- 📝 `site_checker/checkers/seo/metadata.py`
-- 📝 `site_checker/checkers/seo/headings.py`
-- 📝 `site_checker/checkers/seo/images.py`
-- 📝 `site_checker/checkers/seo/structure.py`
-- 📝 `site_checker/checkers/seo/sitemap.py`
-- 📝 `site_checker/checkers/seo/robots.py`
-- 📝 `site_checker/checkers/seo/http.py`
-- 📝 `site_checker/checkers/cms/__init__.py`
-- 📝 `site_checker/checkers/cms/detect.py`
-
-### Файлы для изменения:
-- ✏️ `site_checker/checks.py` (оставить только run_all_checks + импорты)
-
-### Критерий готовности:
-- ✅ Проект запускается
-- ✅ Все проверки выполняются как раньше
-- ✅ Опции/чекбоксы работают (check_h1, check_cms и т.д.)
-- ✅ CSV/XLS содержат те же колонки в том же порядке
+**Что НЕ переносим:**
+- Логику конкретных вкладок (polling, старт/стоп задач)
 
 ---
 
-## 📝 ЭТАП 5: УНИФИЦИРОВАТЬ ПЕРЕДАЧУ ДАННЫХ (CheckContext)
+### Этап 2: Рефакторинг SEO Checker
 
-### Что делать:
+#### 2.1. Создать Blueprint в `tabs/seo_checker/__init__.py`
+```python
+from flask import Blueprint
 
-1. **Создать `site_checker/context.py`:**
-   ```python
-   from dataclasses import dataclass
-   from typing import Optional
-   import httpx
-   from bs4 import BeautifulSoup
-   from .config import CheckOptions, RuntimeOptions
+seo_checker_bp = Blueprint(
+    'seo_checker',
+    __name__,
+    template_folder='templates',
+    static_folder='static',
+    static_url_path='/seo-checker/static'
+)
 
-   @dataclass
-   class CheckContext:
-       """Контекст проверки одного URL"""
-       raw_url: str
-       normalized_url: str
-       response_no_follow: Optional[httpx.Response]
-       response: Optional[httpx.Response]
-       soup: Optional[BeautifulSoup]
-       client: httpx.AsyncClient
-       check_options: CheckOptions
-       runtime: RuntimeOptions
-       final_url: Optional[str] = None
-   ```
+# Импорт роутов если нужно
+# from . import routes
+```
 
-2. **Обновить сигнатуры функций в модулях:**
+#### 2.2. Создать структуру папок
+```bash
+tabs/seo_checker/
+  templates/
+    seo_checker.html
+  static/
+    css/
+      seo_checker.css
+    js/
+      seo_checker.js
+```
 
-   Вместо:
-   ```python
-   def check_h1(soup):
-   ```
+#### 2.3. Создать `tabs/seo_checker/templates/seo_checker.html`
+**Что переносим из `index.html`:**
+- Весь блок `<div class="tool-view" data-tool-view="seo_checker">...</div>`
+- Заменить на наследование от base:
+```jinja2
+{% extends "base.html" %}
 
-   На:
-   ```python
-   def check_h1(ctx: CheckContext):
-       soup = ctx.soup
-       # ...
-   ```
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('seo_checker.static', filename='css/seo_checker.css') }}" />
+{% endblock %}
 
-3. **В `run_all_checks()` создавать контекст и передавать:**
-   ```python
-   async def run_all_checks(...):
-       ctx = CheckContext(
-           raw_url=raw_url,
-           normalized_url=normalized_url,
-           response_no_follow=response_no_follow,
-           response=response,
-           soup=soup,
-           client=client,
-           check_options=check_options,
-           runtime=runtime,
-           final_url=str(response.url) if response else None
-       )
+{% block content %}
+<div class="tool-view active" data-tool-view="seo_checker">
+  <div class="tool-description">...</div>
+  <!-- Весь контент вкладки -->
+</div>
+{% endblock %}
 
-       metadata_result = metadata.check_title_and_description(ctx)
-       headings_result = headings.check_headings(ctx)
-       # ...
-   ```
+{% block extra_js %}
+<script src="{{ url_for('seo_checker.static', filename='js/seo_checker.js') }}"></script>
+{% endblock %}
+```
 
-### Файлы для создания:
-- 📝 `site_checker/context.py`
+#### 2.4. Создать `tabs/seo_checker/static/css/seo_checker.css`
+**Переместить из `main.css`:**
+- Стили специфичные для SEO Checker
+- `.checks-section`, `.checks`, `.check-item`, `.grid`
 
-### Файлы для изменения:
-- ✏️ `site_checker/checks.py` (обновить сигнатуры вызовов)
-- ✏️ Все модули в `site_checker/checkers/` (принимают CheckContext)
+#### 2.5. Создать `tabs/seo_checker/static/js/seo_checker.js`
+**Переместить из `app.js`:**
+- Всю логику работы с SEO Checker
+- Event listeners для кнопок `#start-btn`, `#stop-btn`, `#download-btn`
+- Функции `pollStatus()`, `startJob()`, `stopJob()`
+- localStorage логика
 
-### Критерий готовности:
-- ✅ Код читаемый (нет жерди параметров)
-- ✅ Модули независимы друг от друга
-- ✅ Функциональность не изменилась
-- ✅ Легче добавлять новые проверки
+#### 2.6. Переместить partials
+```
+tabs/seo_checker/templates/
+  partials/
+    runtime_settings.html
+    main_checks.html
+    heading_checks.html
+    html_structure_checks.html
+```
 
----
-
-## 🗂️ СОЗДАНИЕ КАРКАСА TABS
-
-### После этапа 1 (параллельно или сразу):
-
-1. **Создать `tabs/` папка:**
-   ```
-   tabs/
-   ├── __init__.py (пусто)
-   └── seo_checker/
-       └── __init__.py (пусто)
-   ```
-
-2. **Назначение:**
-   - Топ-уровень для разных модулей (SEO, CMS, и т.д.)
-   - На будущее: перенос UI и логики SEO сюда
-
-3. **Без кода на этом этапе** — просто каркас
+Обновить include в `seo_checker.html`:
+```jinja2
+{% include 'partials/runtime_settings.html' %}
+```
 
 ---
 
-## 🔒 ПРАВИЛА ПО DEBUG И ЛОГИРОВАНИЮ
+### Этап 3: Рефакторинг Google Speed
 
-1. **Никакого debug в пользовательские файлы (CSV/XLS)**
-   - Параметры, которых нет в `check_options` → не выводятся
-   - Никаких диагностических данных, timestamps, trace-ов в экспорт
+#### 3.1. Создать Blueprint в `tabs/google_speed/__init__.py`
+```python
+from flask import Blueprint
 
-2. **Debug-режим (опционально, будущее):**
-   - Отдельный лог-файл `logs/debug.log`
-   - Включается флагом окружения: `DEBUG_MODE=1 python start.py`
-   - Не влияет на exporters.py вывод
+google_speed_bp = Blueprint(
+    'google_speed',
+    __name__,
+    template_folder='templates',
+    static_folder='static',
+    static_url_path='/google-speed/static'
+)
+```
 
-3. **Текущее состояние:**
-   - В `checks.py` нет println/logging → оставить как есть
-   - При необходимости → добавить `import logging` позже
+#### 3.2. Создать структуру
+```bash
+tabs/google_speed/
+  templates/
+    google_speed.html
+  static/
+    css/
+      google_speed.css
+    js/
+      google_speed.js
+```
 
----
+#### 3.3. Создать `tabs/google_speed/templates/google_speed.html`
+**Переместить из `index.html`:**
+- Блок `<div class="tool-view" data-tool-view="google_speed">...</div>`
+- Использовать наследование от `base.html`
 
-## ✅ КРИТЕРИИ ПРИЁМКИ
+#### 3.4. Создать `tabs/google_speed/static/css/google_speed.css`
+**Переместить из `main.css`:**
+- `.google-speed-api-help`
+- `.google-speed-key-actions`
 
-### По завершении всех 5 этапов:
-
-1. **Функциональность:**
-   - ✅ Проект запускается (`python start.py`)
-   - ✅ UI загружается без ошибок в консоли/браузере
-   - ✅ Все кнопки работают (Старт, Стоп, Скачать CSV, Скачать XLS)
-   - ✅ Чекбоксы включают/отключают проверки
-   - ✅ Прогрессбар работает
-   - ✅ Результаты выводятся в таблицу
-
-2. **Проверки SEO:**
-   - ✅ Все 10+ проверок выполняются
-   - ✅ Результаты содержат все параметры (Title, Description, H1, и т.д.)
-   - ✅ CMS определяется корректно (WordPress / Unknown)
-   - ✅ Чекбоксы влияют на/отключают параметры в экспорте
-
-3. **Экспорт:**
-   - ✅ CSV содержит правильные колонки и данные
-   - ✅ XLS содержит правильные колонки и стили
-   - ✅ Заголовки скачиваются отдельным файлом (если включено)
-   - ✅ Никаких лишних/debug-параметров в файлах
-
-4. **Архитектура:**
-   - ✅ `checks.py` перестал быть монолитом (проверки в `checkers/`)
-   - ✅ Статика вынесена в `static/`
-   - ✅ Шаблон разбит на `partials/`
-   - ✅ Сетевые утилиты в `network/`
-   - ✅ Парсеры в `parsers/`
-   - ✅ Контекст унифицирован через `CheckContext`
-   - ✅ Архитектура модульна; для добавления новой проверки нужно добавить модуль в `site_checker/checkers/` и подключить его вызов в `run_all_checks()` ([site_checker/checks.py](site_checker/checks.py#L190-L220)). Registry/pipeline пока не реализован.
-
-5. **Документация:**
-   - ✅ Инструкция запуска
-   - ✅ Список файлов (созданы / изменены / удалены)
-   - ✅ Описание "что перенесено куда"
+#### 3.5. Создать `tabs/google_speed/static/js/google_speed.js`
+**Переместить из `static/js/google_speed.js`:**
+- Весь текущий код без изменений
 
 ---
 
-## 📦 ЧТО ПРЕДОСТАВИТЬ ПО ИТОГАМ
+### Этап 4: Рефакторинг Magic Links
 
-1. **Коммит(ы) или архив** с изменениями
-2. **Файл `REFACTOR_SUMMARY.md`:**
-   ```markdown
-   # Итоги рефакторинга SEO-чекера
+#### 4.1. Создать Blueprint в `tabs/magic_links/__init__.py`
+```python
+from flask import Blueprint
 
-   ## Созданные файлы:
-   - static/css/main.css
-   - static/js/app.js
-   - templates/partials/...
-   - site_checker/network/...
-   - site_checker/parsers/...
-   - site_checker/checkers/...
-   - site_checker/context.py
-   - tabs/seo_checker/
+magic_links_bp = Blueprint(
+    'magic_links',
+    __name__,
+    template_folder='templates',
+    static_folder='static',
+    static_url_path='/magic-links/static'
+)
+```
 
-   ## Изменённые файлы:
-   - templates/index.html
-   - site_checker/checks.py
-   - app.py (если были изменения)
+#### 4.2. Создать структуру
+```bash
+tabs/magic_links/
+  templates/
+    magic_links.html
+  static/
+    css/
+      magic_links.css
+    js/
+      magic_links.js
+```
 
-   ## Инструкция запуска:
-   ```
-   python start.py
-   ```
+#### 4.3. Создать `tabs/magic_links/templates/magic_links.html`
+**Переместить из `index.html`:**
+- Блок `<div class="tool-view" data-tool-view="magic_links">...</div>`
+- `<template id="magic-links-card-template">...</template>`
 
-   ## Тестирование (выполнить заказчиком):
-   - Открыть http://localhost:5000
-   - Добавить 5-10 URL-ов
-   - Включить/отключить чекбоксы
-   - Нажать "Старт"
-   - Скачать CSV и XLS
-   - Прверить результаты
-   ```
+#### 4.4. Создать `tabs/magic_links/static/css/magic_links.css`
+**Переместить из `main.css`:**
+- `.magic-links-cards`
+- `.magic-links-grid`
+- `.magic-links-mode`
+- `.magic-links-card`
+- `.magic-links-add`
 
----
-
-## 📊 СВОДНАЯ ТАБЛИЦА ЭТАПОВ
-
-| Этап | Время | Рёбра | Критерий | Риск |
-|------|-------|-------|----------|------|
-| 1. Статика | 1-2ч | CSS+JS в static/ | UI работает | 🟢 Низкий |
-| 2. Partials | 1-2ч | templates/partials/ | DOM тот же | 🟢 Низкий |
-| 3. Утилиты | 2-3ч | network/ + parsers/ | Импорты работают | 🟡 Средний |
-| 4. Модули | 3-4ч | checkers/ | Проверки работают | 🟡 Средний |
-| 5. Контекст | 2-3ч | CheckContext | Код читаемый | 🟢 Низкий |
-| Каркас tabs | 30мин | tabs/ | Просто папки | 🟢 Низкий |
-
-**Итого:** ~10-15 часов разработки
+#### 4.5. Создать `tabs/magic_links/static/js/magic_links.js`
+**Переместить из `app.js`:**
+- Вся логика Magic Links
+- Управление множественными карточками
+- Динамическое добавление/удаление пар
 
 ---
 
-**Начинаем с Этапа 1?**
+### Этап 5: Обновление app.py
+
+#### 5.1. Импортировать и зарегистрировать Blueprint'ы
+```python
+from tabs.seo_checker import seo_checker_bp
+from tabs.google_speed import google_speed_bp
+from tabs.magic_links import magic_links_bp
+from tabs.ssh_tools.routes import ssh_tools_bp  # Уже существует
+
+app.register_blueprint(seo_checker_bp, url_prefix='/seo-checker')
+app.register_blueprint(google_speed_bp, url_prefix='/google-speed')
+app.register_blueprint(magic_links_bp, url_prefix='/magic-links')
+app.register_blueprint(ssh_tools_bp, url_prefix='/ssh-tools')
+```
+
+#### 5.2. Обновить роуты API
+**Переместить API эндпоинты в Blueprint'ы:**
+
+**Пример для Google Speed:**
+В `tabs/google_speed/routes.py`:
+```python
+from flask import jsonify, request
+from . import google_speed_bp
+from .jobs import GoogleSpeedJobManager
+
+@google_speed_bp.route('/api/job', methods=['POST'])
+@require_auth
+def create_job():
+    # Логика создания задачи
+    pass
+
+@google_speed_bp.route('/api/job/<job_id>', methods=['GET'])
+@require_auth
+def get_job_status(job_id):
+    # Логика статуса
+    pass
+```
+
+Аналогично для SEO Checker и Magic Links.
+
+#### 5.3. Обновить главный роут
+```python
+@app.route('/')
+@require_auth
+def index():
+    module = request.args.get('module', 'seo_checker')
+
+    # Маппинг модулей на их Blueprint'ы
+    module_templates = {
+        'seo_checker': 'seo_checker/seo_checker.html',
+        'google_speed': 'google_speed/google_speed.html',
+        'magic_links': 'magic_links/magic_links.html',
+        'ssh_tools': 'ssh_tools/ssh_tools.html',
+    }
+
+    template = module_templates.get(module, 'seo_checker/seo_checker.html')
+
+    return render_template(
+        template,
+        page_title='Lime-Frog SEO & SSH Tools',
+        selected_tool=module,
+        tools=REGISTERED_TOOLS
+    )
+```
+
+---
+
+### Этап 6: Обновление регистрации модулей
+
+#### 6.1. Обновить `tabs/__init__.py`
+```python
+REGISTERED_TOOLS = [
+    {
+        'name': 'seo_checker',
+        'label': 'SEO Checker',
+        'title': 'SEO Checker',
+        'description': 'Проверка SEO-параметров сайтов',
+        'path': '/?module=seo_checker',
+        'blueprint': 'seo_checker'
+    },
+    {
+        'name': 'google_speed',
+        'label': 'Google Speed',
+        'title': 'Google PageSpeed Insights',
+        'description': 'Проверка скорости загрузки через PageSpeed API',
+        'path': '/?module=google_speed',
+        'blueprint': 'google_speed'
+    },
+    # ...
+]
+```
+
+---
+
+### Этап 7: Миграция данных и тестирование
+
+#### 7.1. Проверить пути к статическим файлам
+**В каждом HTML-шаблоне:**
+```jinja2
+<!-- Было -->
+<script src="{{ url_for('static', filename='js/google_speed.js') }}"></script>
+
+<!-- Стало -->
+<script src="{{ url_for('google_speed.static', filename='js/google_speed.js') }}"></script>
+```
+
+#### 7.2. Обновить импорты в JavaScript
+Если есть зависимости между модулями — вынести в `base.js`
+
+#### 7.3. Тестирование
+```bash
+# Запустить приложение
+python start.py
+
+# Проверить каждую вкладку:
+http://localhost:5000/?module=seo_checker
+http://localhost:5000/?module=google_speed
+http://localhost:5000/?module=magic_links
+http://localhost:5000/?module=ssh_tools
+```
+
+#### 7.4. Проверить функциональность
+- [ ] Переключение вкладок работает
+- [ ] Старт/стоп задач
+- [ ] Скачивание XLS/CSV
+- [ ] Сохранение в localStorage
+- [ ] Валидация API ключей
+- [ ] SSH подключения
+- [ ] Replace Tool
+
+---
+
+### Этап 8: Очистка старых файлов
+
+#### 8.1. Удалить старые файлы (после тестирования!)
+```
+templates/
+  index.html          ← УДАЛИТЬ, заменен на base.html + модульные
+  partials/           ← ПЕРЕМЕСТИТЬ в tabs/seo_checker/templates/
+
+static/
+  js/
+    app.js            ← УДАЛИТЬ, разбит по модулям
+    google_speed.js   ← УДАЛИТЬ, перемещен в tabs/google_speed/static/
+  css/
+    main.css          ← Переименовать в base.css, удалить специфичные стили
+```
+
+#### 8.2. Обновить .gitignore (если нужно)
+```
+# Игнорировать локальные конфиги модулей
+tabs/*/config.local.py
+```
+
+---
+
+## Дополнительные улучшения (опционально)
+
+### 1. Вынести общие компоненты
+Если есть переиспользуемые UI-компоненты (прогресс-бары, кнопки, модалки):
+```
+templates/
+  components/
+    progress_bar.html
+    action_buttons.html
+    settings_toggle.html
+```
+
+Использование:
+```jinja2
+{% include 'components/progress_bar.html' %}
+```
+
+### 2. Создать requirements.txt для каждого модуля
+```
+tabs/google_speed/
+  requirements.txt    ← requests, openpyxl
+```
+
+Это позволит понять зависимости каждого модуля при миграции.
+
+### 3. Добавить README.md в каждый модуль
+```markdown
+# Google Speed Module
+
+## Описание
+Проверка скорости загрузки через Google PageSpeed Insights API
+
+## Зависимости
+- requests
+- openpyxl
+
+## API ключ
+Требуется API ключ Google Cloud с доступом к PageSpeed Insights API
+```
+
+### 4. Унифицировать API эндпоинты
+Сделать единый формат для всех модулей:
+```
+GET  /api/{module}/job         - Список задач
+POST /api/{module}/job         - Создать задачу
+GET  /api/{module}/job/{id}    - Статус задачи
+POST /api/{module}/job/{id}/stop - Остановить задачу
+GET  /api/{module}/job/{id}/download - Скачать результат
+```
+
+---
+
+## Чек-лист выполнения
+
+### Подготовка
+- [ ] Создать `templates/base.html`
+- [ ] Создать `static/css/base.css`
+- [ ] Создать `static/js/base.js`
+
+### SEO Checker
+- [ ] Создать Blueprint `tabs/seo_checker/__init__.py`
+- [ ] Создать `tabs/seo_checker/templates/seo_checker.html`
+- [ ] Создать `tabs/seo_checker/static/css/seo_checker.css`
+- [ ] Создать `tabs/seo_checker/static/js/seo_checker.js`
+- [ ] Переместить partials из `templates/partials/`
+- [ ] Создать `tabs/seo_checker/routes.py`
+
+### Google Speed
+- [ ] Создать Blueprint `tabs/google_speed/__init__.py`
+- [ ] Создать `tabs/google_speed/templates/google_speed.html`
+- [ ] Создать `tabs/google_speed/static/css/google_speed.css`
+- [ ] Переместить `static/js/google_speed.js` → `tabs/google_speed/static/js/`
+- [ ] Создать `tabs/google_speed/routes.py`
+
+### Magic Links
+- [ ] Создать Blueprint `tabs/magic_links/__init__.py`
+- [ ] Создать `tabs/magic_links/templates/magic_links.html`
+- [ ] Создать `tabs/magic_links/static/css/magic_links.css`
+- [ ] Создать `tabs/magic_links/static/js/magic_links.js`
+- [ ] Создать `tabs/magic_links/routes.py`
+
+### Интеграция
+- [ ] Обновить `app.py` — зарегистрировать все Blueprint'ы
+- [ ] Обновить `tabs/__init__.py` — добавить blueprint в REGISTERED_TOOLS
+- [ ] Переместить API роуты из `app.py` в модульные `routes.py`
+
+### Тестирование
+- [ ] Проверить работу каждой вкладки
+- [ ] Проверить API эндпоинты
+- [ ] Проверить localStorage
+- [ ] Проверить экспорт XLS/CSV
+- [ ] Проверить auth и ssh модалки
+
+### Очистка
+- [ ] Удалить старый `templates/index.html`
+- [ ] Удалить `static/js/app.js`
+- [ ] Переименовать `main.css` → `base.css`
+- [ ] Удалить неиспользуемые CSS
+
+---
+
+## Риски и как их избежать
+
+### Риск 1: Сломается маршрутизация
+**Решение:** Сначала создать Blueprint'ы, зарегистрировать их, протестировать — только потом удалять старые файлы.
+
+### Риск 2: Потеряются стили
+**Решение:** Тестировать каждый модуль отдельно после миграции CSS.
+
+### Риск 3: Не работает localStorage
+**Решение:** Префиксы в ключах localStorage должны остаться прежними (`google-speed-api-key`, `magic-links-urls-1`).
+
+### Риск 4: API эндпоинты переезжают
+**Решение:** В JavaScript обновить URL'ы:
+```javascript
+// Было
+fetch('/api/google-speed/job', ...)
+
+// Остается так же (Blueprint использует url_prefix)
+fetch('/api/google-speed/job', ...)
+```
+
+---
+
+## Итоговый результат
+
+После рефакторинга:
+- ✅ Каждый модуль полностью автономен
+- ✅ Можно копировать папку модуля в другой проект
+- ✅ Легко добавлять новые вкладки
+- ✅ Простая поддержка и отладка
+- ✅ Единообразная архитектура для всех модулей
+- ✅ Масштабируемость до десятков вкладок
+
+**Время выполнения:** 4-6 часов работы для всех модулей.
+
+**Приоритет:** Средний (сейчас работает, но при масштабировании станет критично).

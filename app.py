@@ -3,10 +3,19 @@ import logging
 import os
 import platform
 from functools import wraps
+from pathlib import Path
 from typing import Any, Dict
 
 import requests
-from flask import Flask, jsonify, render_template, request, send_file
+from flask import (
+    Flask,
+    jsonify,
+    render_template,
+    request,
+    send_file,
+    send_from_directory,
+)
+from jinja2 import ChoiceLoader, FileSystemLoader
 
 from auth import verify_credentials, create_session_token, verify_session_token
 from logging_config import setup_logging, cleanup_old_job_logs, get_job_log_path
@@ -76,6 +85,19 @@ def create_app() -> Flask:
     cleanup_old_job_logs()
 
     app = Flask(__name__)
+    tabs_root = Path(app.root_path) / "tabs"
+    app.jinja_loader = ChoiceLoader(
+        [
+            app.jinja_loader,
+            FileSystemLoader(str(tabs_root)),
+        ]
+    )
+
+    module_static_roots = {
+        "seo-checker": tabs_root / "seo_checker" / "static",
+        "google-speed": tabs_root / "google_speed" / "static",
+        "magic-links": tabs_root / "magic_links" / "static",
+    }
 
     def render_tool_page(selected_tool: str):
         module = get_module(selected_tool) or get_default_module()
@@ -94,6 +116,13 @@ def create_app() -> Flask:
     @app.route("/")
     def index():
         return render_tool_page("seo_checker")
+
+    @app.get("/<module_slug>/static/<path:filename>")
+    def module_static_file(module_slug: str, filename: str):
+        module_dir = module_static_roots.get(module_slug)
+        if not module_dir or not module_dir.exists():
+            return jsonify({"error": "not found"}), 404
+        return send_from_directory(module_dir, filename)
 
     @app.route("/ssh-tools")
     def ssh_tools():
@@ -443,7 +472,9 @@ def create_app() -> Flask:
 
         raw_strategies = payload.get("strategies", []) or []
         strategies = [
-            item for item in raw_strategies if isinstance(item, str) and item in VALID_STRATEGIES
+            item
+            for item in raw_strategies
+            if isinstance(item, str) and item in VALID_STRATEGIES
         ]
         if not strategies:
             return jsonify({"error": "Выберите хотя бы одну стратегию"}), 400

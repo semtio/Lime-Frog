@@ -18,8 +18,12 @@ const activeUsersEl = document.getElementById('active-users');
 const queueCountEl = document.getElementById('queue-count');
 const toolSelect = document.getElementById('tool-select');
 const toolViews = document.querySelectorAll('[data-tool-view]');
+const themePicker = document.getElementById('theme-picker');
+const themeToggle = document.getElementById('theme-toggle');
+const themeOptions = document.querySelectorAll('.theme-option[data-theme-choice]');
 
 const TOOL_STORAGE_KEY = 'active-tool';
+const THEME_STORAGE_KEY = 'ui-theme-mode';
 
 let pollTimer = null;
 let jobId = localStorage.getItem('seo-job-id');
@@ -63,6 +67,60 @@ function setActiveTool(toolName, updateUrl = true) {
     const url = new URL(window.location.href);
     url.searchParams.set('module', selectedName);
     history.replaceState({}, '', url.toString());
+  }
+}
+
+function getSystemTheme() {
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function applyTheme(mode) {
+  const normalizedMode = ['light', 'dark', 'auto'].includes(mode) ? mode : 'auto';
+  const activeTheme = normalizedMode === 'auto' ? getSystemTheme() : normalizedMode;
+  document.body.dataset.themeMode = normalizedMode;
+  document.body.dataset.themeActive = activeTheme;
+
+  themeOptions.forEach((option) => {
+    option.classList.toggle('active', option.dataset.themeChoice === normalizedMode);
+  });
+}
+
+function initThemePicker() {
+  if (!themePicker || !themeToggle || !themeOptions.length) return;
+
+  const savedMode = localStorage.getItem(THEME_STORAGE_KEY) || 'auto';
+  applyTheme(savedMode);
+
+  themeOptions.forEach((option) => {
+    option.addEventListener('click', () => {
+      const mode = option.dataset.themeChoice || 'auto';
+      localStorage.setItem(THEME_STORAGE_KEY, mode);
+      applyTheme(mode);
+      themePicker.classList.remove('open');
+    });
+  });
+
+  themeToggle.addEventListener('click', (event) => {
+    event.stopPropagation();
+    themePicker.classList.toggle('open');
+  });
+
+  document.addEventListener('click', (event) => {
+    if (!themePicker.contains(event.target)) {
+      themePicker.classList.remove('open');
+    }
+  });
+
+  const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+  const updateAutoTheme = () => {
+    if ((localStorage.getItem(THEME_STORAGE_KEY) || 'auto') === 'auto') {
+      applyTheme('auto');
+    }
+  };
+  if (typeof mediaQuery.addEventListener === 'function') {
+    mediaQuery.addEventListener('change', updateAutoTheme);
+  } else if (typeof mediaQuery.addListener === 'function') {
+    mediaQuery.addListener(updateAutoTheme);
   }
 }
 
@@ -147,6 +205,7 @@ function clearAllData() {
 }
 
 // ========== Инициализация ==========
+initThemePicker();
 loadAllData();
 updateToggleButtons();
 

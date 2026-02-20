@@ -1,0 +1,108 @@
+<div class="tool-view {% if selected_tool == 'ssh_tools' %}active{% endif %}" data-tool-view="ssh_tools">
+  <div class="tool-description">Подключение к серверам по SSH и запуск команд</div>
+  <div class="panel ssh-tools-panel">
+    <div class="ssh-tools-header">
+      <div>
+        <div class="ssh-tools-title">🧰 SSH Tools</div>
+        <div class="ssh-tools-hint">Выберите сервер и проверьте подключение</div>
+      </div>
+    </div>
+
+    <div class="ssh-connection-card">
+      <div class="ssh-connection-grid">
+        <div class="field">
+          <label for="ssh-server-select">Сервер</label>
+          <select id="ssh-server-select" class="tool-select">
+            <option value="">Загрузка...</option>
+          </select>
+        </div>
+        <div class="ssh-actions">
+          <button class="secondary" id="ssh-add-server" type="button">Добавить</button>
+          <button class="primary" id="ssh-test-connection" type="button" disabled>Тест подключения</button>
+          <button class="secondary" id="ssh-edit-server" type="button" disabled>Редактировать</button>
+          <button class="danger" id="ssh-delete-server" type="button" disabled>Удалить</button>
+        </div>
+      </div>
+      <div class="ssh-status" id="ssh-status">Готово к подключению</div>
+    </div>
+
+    <div class="ssh-console-card">
+      <div class="ssh-console-header">
+        <div class="ssh-console-title">Мини-консоль</div>
+        <div class="ssh-console-paths" id="ssh-console-paths"></div>
+        <div class="ssh-console-hint">Команды выполняются через SSH (bash)</div>
+      </div>
+      <div class="ssh-console-body">
+        <div class="field">
+          <label for="ssh-command-input">Скрипт</label>
+          <textarea
+            id="ssh-command-input"
+            class="ssh-console-textarea"
+            placeholder="echo 'backup start' && date\n# ваш bash-скрипт"
+            disabled></textarea>
+        </div>
+        <div class="ssh-console-actions">
+          <button class="primary" id="ssh-command-run" type="button" disabled>Отправить</button>
+          <div class="ssh-console-status" id="ssh-command-status"></div>
+        </div>
+        <pre class="ssh-console-output" id="ssh-command-output" aria-live="polite"></pre>
+      </div>
+    </div>
+
+    <div class="replace-tool-panel" id="replace-tool-panel">
+      <div class="replace-main-grid">
+        <div class="replace-field-large">
+          <label>① Домены</label>
+          <textarea
+            id="replace-domains-list"
+            placeholder="Один путь на строку&#10;/home/admin/web/example.com/public_html/header.php&#10;/home/admin/web/another.com/public_html/header.php"
+            class="domains-textarea"></textarea>
+
+          <div class="replace-domains-actions">
+            <button id="replace-validate-domains" class="secondary" type="button">✓ Проверить</button>
+          </div>
+
+          <div id="replace-domains-stats" class="stats-display" style="display: none;">
+            <span class="stat-found">✓ Найдено: <strong id="stat-found-count">0</strong></span>
+            <span class="stat-errors">⚠️ Ошибок: <strong id="stat-errors-count">0</strong></span>
+          </div>
+
+          <div id="replace-errors-section" class="errors-section" style="display: none;">
+            <label>Файлы не найдены:</label>
+            <textarea
+              id="replace-not-found-domains"
+              readonly
+              class="not-found-textarea"
+              placeholder="Здесь появятся пути, которые не найдены на сервере"></textarea>
+          </div>
+        </div>
+
+        <div class="replace-field-stack">
+          <div class="replace-field-small">
+            <label>② Найти</label>
+            <textarea
+              id="replace-search-text"
+              placeholder="Текст для поиска"
+              disabled></textarea>
+          </div>
+
+          <div class="replace-field-medium">
+            <label>③ Заменить (по строке на домен)</label>
+            <textarea
+              id="replace-replacements"
+              placeholder="Замены для каждого домена"
+              disabled></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="replace-actions-compact">
+        <button id="replace-preview-btn" class="secondary" type="button" disabled>Предпросмотр</button>
+        <button id="replace-execute-btn" class="primary" type="button" disabled>Применить</button>
+        <div id="replace-tool-status" class="status-inline"></div>
+      </div>
+
+      <div id="replace-tool-results" class="replace-results-compact"></div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,45 @@
+.google-speed-api-help {
+    margin-top: 12px;
+    padding: 14px;
+    border: 1px solid rgba(124, 77, 255, 0.18);
+    border-radius: 10px;
+    background: rgba(124, 77, 255, 0.06);
+}
+
+.google-speed-api-help__title {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: var(--accent-2);
+}
+
+.google-speed-api-help ol {
+    margin: 0 0 10px 18px;
+    padding: 0;
+    display: grid;
+    gap: 6px;
+    color: var(--text);
+    font-size: 14px;
+}
+
+.google-speed-api-help a {
+    color: var(--accent);
+    text-decoration: none;
+}
+
+.google-speed-api-help a:hover {
+    text-decoration: underline;
+}
+
+.google-speed-key-actions {
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.google-speed-key-actions button {
+    padding: 8px 12px;
+    border-radius: 8px;
+}

@@ -1,0 +1,101 @@
+<div class="tool-view {% if selected_tool == 'google_speed' %}active{% endif %}" data-tool-view="google_speed">
+  <div class="tool-description">Проверка скорости загрузки сайтов через Google PageSpeed Insights API</div>
+  <div class="panel">
+    <div class="field">
+      <label for="gs-urls">Список доменов</label>
+      <textarea id="gs-urls" placeholder="example.com\nhttps://example.org"></textarea>
+    </div>
+
+    <div class="actions">
+      <button class="primary" id="gs-start-btn">Старт</button>
+      <button class="danger" id="gs-stop-btn" disabled>Стоп</button>
+      <button class="secondary" id="gs-download-xlsx-btn" disabled>Скачать XLS</button>
+      <button class="secondary" id="gs-clear-btn" title="Очистить сохранённые данные">🗑️ Очистить</button>
+    </div>
+
+    <div class="status" id="gs-status">Готово к запуску</div>
+    <div class="progress-bar" aria-label="progress">
+      <div class="progress-fill" id="gs-progress-fill"></div>
+    </div>
+
+    <button class="settings-toggle" id="gs-toggle-settings">⚙️ Настройки</button>
+    <div class="settings" id="gs-settings">
+      <div class="grid">
+        <div class="field">
+          <label for="gs-concurrency">Количество потоков</label>
+          <input type="number" id="gs-concurrency" min="1" max="10" value="5" />
+        </div>
+        <div class="field">
+          <label for="gs-api-key">API-ключ</label>
+          <input type="password" id="gs-api-key" placeholder="AIzaSy..." />
+          <div class="google-speed-key-actions">
+            <button type="button" class="secondary" id="gs-validate-key-btn">Проверить ключ</button>
+            <span class="muted" id="gs-api-key-status"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="checks-section">
+        <div class="checks-header">
+          <span>Стратегия проверки</span>
+        </div>
+        <div class="checks">
+          <label class="check-item">
+            <input type="checkbox" id="gs-strategy-desktop" checked />
+            <div>
+              <strong>Desktop</strong>
+            </div>
+          </label>
+          <label class="check-item">
+            <input type="checkbox" id="gs-strategy-mobile" checked />
+            <div>
+              <strong>Mobile</strong>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div class="checks-section">
+        <div class="checks-header">
+          <span>Категории проверки</span>
+        </div>
+        <div class="checks">
+          <label class="check-item">
+            <input type="checkbox" id="gs-category-performance" checked />
+            <div>
+              <strong>Performance</strong>
+            </div>
+          </label>
+          <label class="check-item">
+            <input type="checkbox" id="gs-category-accessibility" checked />
+            <div>
+              <strong>Accessibility</strong>
+            </div>
+          </label>
+          <label class="check-item">
+            <input type="checkbox" id="gs-category-best-practices" checked />
+            <div>
+              <strong>Best Practice</strong>
+            </div>
+          </label>
+          <label class="check-item">
+            <input type="checkbox" id="gs-category-seo" checked />
+            <div>
+              <strong>SEO</strong>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div class="google-speed-api-help">
+        <div class="google-speed-api-help__title">Как получить API-ключ</div>
+        <ol>
+          <li>Перейдите на <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer">console.cloud.google.com</a></li>
+          <li>Создайте проект или используйте существующий</li>
+          <li>Включите <strong>PageSpeed Insights API</strong></li>
+          <li>Создайте API-ключ в разделе «Учетные данные»</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</div>

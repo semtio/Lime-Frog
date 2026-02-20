@@ -1,0 +1,31 @@
+<div class="tool-view {% if selected_tool == 'seo_checker' %}active{% endif %}" data-tool-view="seo_checker">
+  <div class="tool-description">Вставьте домены (по одному в строке), выберите проверки и запустите</div>
+  <div class="panel">
+  <div class="field">
+    <label for="urls">Список доменов</label>
+    <textarea id="urls" placeholder="example.com\nhttps://example.org"></textarea>
+  </div>
+
+  <div class="actions">
+    <button class="primary" id="start-btn">Старт</button>
+    <button class="danger" id="stop-btn" disabled>Стоп</button>
+    <button class="secondary" id="download-btn" disabled>Скачать CSV</button>
+    <button class="secondary" id="download-xlsx-btn" disabled>Скачать XLS</button>
+    <button class="secondary" id="clear-btn" title="Очистить сохранённые данные">🗑️ Очистить</button>
+  </div>
+
+  <div class="status" id="status">Готово к запуску</div>
+  <div class="progress-bar" aria-label="progress">
+    <div class="progress-fill" id="progress-fill"></div>
+  </div>
+  <div class="resource" id="resource" style="display:none;"></div>
+
+  <button class="settings-toggle" id="toggle-settings">⚙️ Настройки</button>
+  <div class="settings" id="settings">
+    {% include 'partials/runtime_settings.html' %}
+    {% include 'partials/main_checks.html' %}
+    {% include 'partials/heading_checks.html' %}
+    {% include 'partials/html_structure_checks.html' %}
+  </div>
+  </div>
+</div>
