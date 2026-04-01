@@ -23,6 +23,30 @@ warn() {
     echo -e "${YELLOW}[WARN]${NC} $1"
 }
 
+configure_panel_firewall() {
+    local panel_bin=""
+
+    if [ -x /usr/local/hestia/bin/v-list-firewall ]; then
+        panel_bin="/usr/local/hestia/bin"
+    elif [ -x /usr/local/vesta/bin/v-list-firewall ]; then
+        panel_bin="/usr/local/vesta/bin"
+    else
+        warn "Не удалось найти утилиты firewall панели. Откройте порт $APP_PORT вручную."
+        return 0
+    fi
+
+    if "$panel_bin/v-list-firewall" | grep -qw "$APP_PORT"; then
+        info "Правило firewall для порта $APP_PORT уже существует в панели"
+        return 0
+    fi
+
+    if "$panel_bin/v-add-firewall-rule" ACCEPT 0.0.0.0/0 "$APP_PORT" TCP "seo-checker-$APP_PORT"; then
+        info "Firewall настроен через панель (открыт порт: $APP_PORT)"
+    else
+        warn "Не удалось автоматически открыть порт $APP_PORT через панель. Проверьте firewall вручную."
+    fi
+}
+
 # Проверка root прав
 if [ "$EUID" -ne 0 ]; then
     error_exit "Запустите с sudo: sudo ./install.sh"
@@ -168,12 +192,15 @@ systemctl enable $SERVICE_NAME || error_exit "Не удалось включит
 systemctl restart $SERVICE_NAME || error_exit "Не удалось запустить сервис"
 
 info "[5/8] Настройка Firewall..."
-if command -v ufw &> /dev/null; then
-    ufw --force enable
-    ufw allow 22/tcp
-    ufw allow $APP_PORT/tcp
-    ufw reload
-    info "UFW настроен (открыты порты: 22, $APP_PORT)"
+if [ "$PANEL_DETECTED" = "hestia" ] || [ "$PANEL_DETECTED" = "vesta" ]; then
+    warn "На сервере с панелью firewall управляется через панель, UFW пропускаю"
+    configure_panel_firewall
+elif command -v ufw &> /dev/null; then
+    if ufw --force enable && ufw allow 22/tcp && ufw allow $APP_PORT/tcp && ufw reload; then
+        info "UFW настроен (открыты порты: 22, $APP_PORT)"
+    else
+        warn "Не удалось настроить UFW автоматически. Проверьте firewall вручную, установка продолжится."
+    fi
 else
     warn "UFW не установлен, пропускаю настройку firewall"
 fi
