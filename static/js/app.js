@@ -198,6 +198,8 @@ function clearAllData() {
     localStorage.removeItem(STORAGE_KEYS.URLS);
     localStorage.removeItem(STORAGE_KEYS.SETTINGS);
     localStorage.removeItem(STORAGE_KEYS.RUNTIME);
+    localStorage.removeItem("seo-column-order-v1");
+    document.dispatchEvent(new Event("seo-settings-cleared"));
     // Очистить форму
     document.getElementById('urls').value = '';
     setStatus('Данные очищены');
@@ -529,6 +531,7 @@ async function startJob() {
     session_id: sessionId,
     urls,
     options,
+    column_order: window.seoColumnOrder ? window.seoColumnOrder() : [],
     runtime: {
       concurrency: Number(document.getElementById('concurrency').value || 3),
       timeout_seconds: Number(document.getElementById('timeout').value || 15),

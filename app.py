@@ -33,6 +33,7 @@ from tabs.seo_checker.exporters import (
     rows_to_xlsx_bytes,
 )
 from tabs.seo_checker.jobs import JobManager
+from tabs.seo_checker.columns import COLUMN_GROUPS, normalize_column_order
 from tabs.magic_links.jobs import MagicLinksJobManager, MagicLinksRuntime
 from tabs.google_speed.jobs import (
     GoogleSpeedJobManager,
@@ -106,6 +107,7 @@ def create_app() -> Flask:
             "index.html",
             defaults=DEFAULT_RUNTIME_OPTIONS.__dict__,
             checks=DEFAULT_CHECK_OPTIONS.to_dict(),
+            seo_column_groups=COLUMN_GROUPS,
             labels=CHECK_LABELS,
             tools=tools,
             selected_tool=module.name if module else "seo_checker",
@@ -191,6 +193,7 @@ def create_app() -> Flask:
             if key in merged_opts:
                 merged_opts[key] = bool(value)
         check_options = CheckOptions(**merged_opts)
+        check_options.column_order = normalize_column_order(payload.get("column_order"))
 
         merged_runtime = DEFAULT_RUNTIME_OPTIONS.__dict__.copy()
         for key, value in runtime_data.items():

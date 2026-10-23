@@ -1,0 +1,20 @@
+<div class="checks-section seo-structure-section">
+  <div class="checks-header">
+    <span>📋 Содержимое колонки «HTML структура»</span>
+    <div class="checks-buttons">
+      <button type="button" class="toggle-all-btn" data-group="html-checks">Выбрать всё</button>
+    </div>
+  </div>
+  <p class="seo-order-help">Выберите теги для общей колонки «HTML структура». Они выводятся в порядке появления на странице. Позицию самой колонки можно изменить в списке проверок выше.</p>
+  <div class="checks html-checks seo-structure-grid">
+    {% for key, checked in checks.items() %}
+    {% if key.startswith('html_track_') %}
+    <label class="check-item html-structure-option seo-structure-card">
+      <input type="checkbox" data-option="{{ key }}" {% if checked %}checked{% endif %} />
+      <span>{{ labels.get(key, key) }}</span>
+    </label>
+    {% endif %}
+    {% endfor %}
+  </div>
+  <p class="seo-order-help" id="seo-structure-disabled" hidden>Сбор HTML-структуры выключен. Включите его в списке проверок выше.</p>
+</div>

@@ -5,6 +5,7 @@ import httpx
 from bs4 import BeautifulSoup
 
 from .config import CheckOptions, RuntimeOptions
+from .network.link_cache import LinkCheckCache
 
 
 @dataclass
@@ -21,3 +22,4 @@ class CheckContext:
     runtime: RuntimeOptions
     final_url: Optional[str] = None
     is_redirect: bool = False
+    link_cache: Optional[LinkCheckCache] = None

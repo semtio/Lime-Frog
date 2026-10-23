@@ -9,6 +9,7 @@ import httpx
 
 from . import checks
 from .config import CheckOptions, RuntimeOptions
+from .network.link_cache import LinkCheckCache
 from job_gate import ActiveUserGate
 
 # Импорт из корневого модуля (два уровня вверх)
@@ -116,14 +117,19 @@ class Job:
             headers=checks.BROWSER_HEADERS, limits=limits, timeout=timeout
         ) as client:
             sem = asyncio.Semaphore(self.runtime.concurrency)
+            link_cache = LinkCheckCache()
             tasks = [
-                asyncio.create_task(self._process_single(idx, url, client, sem))
+                asyncio.create_task(self._process_single(idx, url, client, sem, link_cache))
                 for idx, url in enumerate(self.urls)
             ]
-            await asyncio.gather(*tasks)
+            try:
+                await asyncio.gather(*tasks)
+            finally:
+                await link_cache.close()
 
     async def _process_single(
-        self, idx: int, url: str, client: httpx.AsyncClient, sem: asyncio.Semaphore
+        self, idx: int, url: str, client: httpx.AsyncClient, sem: asyncio.Semaphore,
+        link_cache: Optional[LinkCheckCache] = None,
     ):
         if self.is_cancelled():
             return
@@ -137,7 +143,7 @@ class Job:
             start_time = time.time()
             try:
                 row = await checks.run_all_checks(
-                    url, client, self.check_options, self.runtime
+                    url, client, self.check_options, self.runtime, link_cache=link_cache
                 )
                 elapsed_ms = (time.time() - start_time) * 1000
 
@@ -159,7 +165,7 @@ class Job:
                     f"{elapsed_ms:.0f}ms | {str(exc)[:100]}"
                 )
 
-                row = {col: "" for col in checks.CSV_COLUMNS}
+                row = {col: "" for col in checks.get_active_columns(self.check_options)}
                 row["URL"] = url
                 row["Код ответа"] = f"ошибка: {exc}"[:200]
 
@@ -338,4 +344,24 @@ class JobManager:
         job = self.get(job_id)
         if not job:
             return None
-        return [row for _, row in sorted(job.results, key=lambda item: item[0])]
+        rows = [row for _, row in sorted(job.results, key=lambda item: item[0])]
+        max_alts = max((int(key[4:]) for row in rows for key in row
+                        if key.startswith("Alt-") and key[4:].isdigit()), default=0)
+        columns = checks.get_active_columns(job.check_options, max_alts)
+        if job.check_options.check_image_formats:
+            from .checkers.seo.images import IMAGE_FORMATS
+
+            # Keep a format's column pair only when at least one page has it.
+            # Filter the whole result set so every row shares the same schema.
+            empty_columns = set()
+            for image_format in IMAGE_FORMATS:
+                count_column = f"{image_format}: количество"
+                links_column = f"{image_format}: ссылки на изображения"
+                if not any(
+                    str(row.get(count_column, "")).strip() not in ("", "0")
+                    or str(row.get(links_column, "")).strip()
+                    for row in rows
+                ):
+                    empty_columns.update((count_column, links_column))
+            columns = [column for column in columns if column not in empty_columns]
+        return [{column: row.get(column, "") for column in columns} for row in rows]

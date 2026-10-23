@@ -30,8 +30,8 @@ print(f"Хеш пароля: {password_hash}")
 
 **Пример вывода:**
 ```
-Хеш логина: $2b$12$KIXxqF4Zm9N.kV8qZ9p5p.EhM3XqS7vN8pFJ9zK1L2m3N4o5P6q7R
-Хеш пароля: $2b$12$AbCdEfGhIjKlMnOpQrStUvWxYz123456789ABCDEFGHIJKLMNOPQ
+  "username_hash": "$2b$12$5fVeeCfmocY6DKQ4q4FLde.nutXFlKgGagihkKU7oHMTrou8NeqE.",
+  "password_hash": "$2b$12$hQ16hm2FhL81WH07o.BqP.7gP4ftSAWQfmUzTiq6MTrt4JFp8/BnO"
 ```
 
 ### 3. Настройка credentials.json
@@ -42,8 +42,8 @@ print(f"Хеш пароля: {password_hash}")
 {
   "_comment": "Инструкция: Сгенерируйте bcrypt хеши для логина и пароля, затем вставьте их ниже",
   "_example_generation": "Используйте Python: import bcrypt; bcrypt.hashpw('your_value'.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')",
-  "username_hash": "$2b$12$KIXxqF4Zm9N.kV8qZ9p5p.EhM3XqS7vN8pFJ9zK1L2m3N4o5P6q7R",
-  "password_hash": "$2b$12$AbCdEfGhIjKlMnOpQrStUvWxYz123456789ABCDEFGHIJKLMNOPQ"
+  "username_hash": "$2b$12$5fVeeCfmocY6DKQ4q4FLde.nutXFlKgGagihkKU7oHMTrou8NeqE.",
+  "password_hash": "$2b$12$hQ16hm2FhL81WH07o.BqP.7gP4ftSAWQfmUzTiq6MTrt4JFp8/BnO"
 }
 ```
 

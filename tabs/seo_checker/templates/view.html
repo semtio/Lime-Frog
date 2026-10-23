@@ -1,3 +1,5 @@
+<link rel="stylesheet" href="/seo-checker/static/css/column_order.css" />
+<script defer src="/seo-checker/static/js/column_order.js"></script>
 <div class="tool-view {% if selected_tool == 'seo_checker' %}active{% endif %}" data-tool-view="seo_checker">
   <div class="tool-description">Вставьте домены (по одному в строке), выберите проверки и запустите</div>
   <div class="panel">
@@ -23,9 +25,9 @@
   <button class="settings-toggle" id="toggle-settings">⚙️ Настройки</button>
   <div class="settings" id="settings">
     {% include 'partials/runtime_settings.html' %}
-    {% include 'partials/main_checks.html' %}
+    {% include 'seo_checker/templates/main_checks.html' %}
     {% include 'partials/heading_checks.html' %}
-    {% include 'partials/html_structure_checks.html' %}
+    {% include 'seo_checker/templates/html_structure_checks.html' %}
   </div>
   </div>
 </div>

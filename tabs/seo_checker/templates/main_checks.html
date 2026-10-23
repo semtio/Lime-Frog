@@ -1,0 +1,30 @@
+<div class="checks-section seo-order-section">
+  <div class="checks-header">
+    <span>⚙️ Проверки и порядок колонок</span>
+    <div class="checks-buttons">
+      <button type="button" class="toggle-all-btn" data-group="main-checks">Выбрать всё</button>
+      <button type="button" class="seo-reset-order" id="seo-reset-column-order">Сбросить порядок</button>
+    </div>
+  </div>
+  <p class="seo-order-help">Перетаскивайте карточки за ⋮⋮ или используйте стрелки. Порядок идёт по строкам: слева направо, затем вниз. Связанные колонки перемещаются вместе.</p>
+  <div class="seo-fixed-column"><strong>A · URL</strong><span>Всегда первая колонка</span></div>
+  <div class="checks main-checks seo-sort-list" id="seo-column-order" role="list" aria-label="Порядок групп колонок">
+    {% for key, columns in seo_column_groups.items() if key != 'headings' %}
+    <div class="seo-sort-card" data-column-group="{{ key }}" data-columns='{{ columns|tojson }}' role="listitem">
+      <button type="button" class="seo-drag-handle" aria-label="Перетащить группу" title="Перетащить">⋮⋮</button>
+      <span class="seo-order-number" aria-label="Порядковый номер">{{ loop.index }}</span>
+      <div class="seo-card-content">
+        <label class="seo-card-label"><input type="checkbox" data-option="{{ key }}" {% if checks.get(key) %}checked{% endif %} /><span>{% if key == 'check_h1' %}Количество H1{% else %}{{ labels.get(key, key) }}{% endif %}</span></label>
+        <small class="seo-column-position"></small>
+      </div>
+      <div class="seo-move-buttons">
+        <button type="button" data-move="-1" aria-label="Переместить раньше" title="Переместить раньше">↑</button>
+        <button type="button" data-move="1" aria-label="Переместить позже" title="Переместить позже">↓</button>
+      </div>
+    </div>
+    {% endfor %}
+    <label class="check-item seo-behavior-option"><input type="checkbox" data-option="follow_redirects_for_checks" {% if checks.follow_redirects_for_checks %}checked{% endif %} /><span>{{ labels.follow_redirects_for_checks }}</span></label>
+  </div>
+  <p class="seo-order-help">Номера обозначают группы; буквы — колонки в CSV / Excel. Число колонок Alt зависит от страницы. Новый порядок применяется к следующему запуску.</p>
+  <div class="seo-sort-status" id="seo-sort-status" role="status" aria-live="polite"></div>
+</div>

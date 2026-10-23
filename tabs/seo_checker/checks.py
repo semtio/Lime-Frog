@@ -8,6 +8,9 @@ from bs4 import BeautifulSoup
 
 from .config import CheckOptions, RuntimeOptions
 from .context import CheckContext
+from .network.link_cache import LinkCheckCache
+from .columns import order_columns
+from .checkers.seo.broken_links import check_broken_links
 from .network.fetcher import fetch_with_retries, BROWSER_HEADERS
 from .network.url import normalize_url
 from .parsers.meta import (
@@ -21,7 +24,7 @@ from .checkers.seo.sitemap import check_sitemap, get_pages_from_sitemap
 from .checkers.seo.robots import check_robots
 from .checkers.seo.http import check_404
 from .checkers.seo.headings import check_h1, collect_headings, find_heading_duplicates
-from .checkers.seo.images import check_images_alt
+from .checkers.seo.images import check_images_alt, collect_image_formats, IMAGE_FORMAT_COLUMNS
 from .checkers.seo.structure import build_html_structure
 from .checkers.cms.detect import check_cms
 
@@ -57,6 +60,8 @@ CSV_COLUMNS_BASE = [
     "Кол-во img",
     "Кол-во alt",
     "CMS",
+    "Битые ссылки",
+    *IMAGE_FORMAT_COLUMNS,
 ]
 
 
@@ -120,10 +125,16 @@ def get_active_columns(check_options: CheckOptions, max_alts: int = 0) -> List[s
         for i in range(1, max_alts + 1):
             cols.append(f"Alt-{i}")
 
+    if check_options.check_broken_links:
+        cols.append("Битые ссылки")
+
+    if check_options.check_image_formats:
+        cols.extend(IMAGE_FORMAT_COLUMNS)
+
     if check_options.check_cms:
         cols.append("CMS")
 
-    return cols
+    return order_columns(cols, check_options.column_order)
 
 
 def get_csv_columns(max_alts: int = 0) -> List[str]:
@@ -138,6 +149,7 @@ async def run_all_checks(
     client: httpx.AsyncClient,
     check_options: CheckOptions,
     runtime: RuntimeOptions,
+    link_cache: Optional[LinkCheckCache] = None,
 ) -> Dict[str, str]:
     normalized_url = normalize_url(raw_url)
 
@@ -193,6 +205,7 @@ async def run_all_checks(
         runtime=runtime,
         final_url=final_url,
         is_redirect=is_redirect,
+        link_cache=link_cache,
     )
 
     # Собрать все значения
@@ -259,7 +272,8 @@ async def run_all_checks(
     # Сбор содержимого заголовков H1-H6
     headings = collect_headings(ctx)
     for heading_key, heading_text in headings.items():
-        result[heading_key] = heading_text
+        if heading_key in result:
+            result[heading_key] = heading_text
 
     if check_options.check_html_structure:
         result["HTML структура"] = build_html_structure(ctx)
@@ -273,6 +287,12 @@ async def run_all_checks(
         if alts:
             for idx, alt in enumerate(alts, start=1):
                 result[f"Alt-{idx}"] = alt
+
+    if check_options.check_image_formats:
+        result.update(collect_image_formats(ctx))
+
+    if check_options.check_broken_links:
+        result["Битые ссылки"] = await check_broken_links(ctx)
 
     # Проверка CMS
     if check_options.check_cms:

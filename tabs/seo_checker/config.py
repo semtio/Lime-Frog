@@ -13,6 +13,8 @@ class CheckOptions:
     check_robots: bool = True
     check_404: bool = True
     check_h1: bool = True
+    check_broken_links: bool = False
+    check_image_formats: bool = False
     check_images: bool = True
     check_html_structure: bool = True
     check_heading_duplicates: bool = True
@@ -41,8 +43,10 @@ class CheckOptions:
     # Проверка CMS
     check_cms: bool = True
 
+    column_order: list[str] = field(default_factory=list)
+
     def to_dict(self) -> Dict[str, bool]:
-        return self.__dict__.copy()
+        return {key: value for key, value in self.__dict__.items() if key != "column_order"}
 
 
 @dataclass
@@ -63,6 +67,8 @@ CHECK_LABELS = {
     "check_404": "Страница 404",
     "check_h1": "H1",
     "check_images": "Alt изображений",
+    "check_broken_links": "Битые ссылки: страницы, изображения, CSS, JS",
+    "check_image_formats": "Парсить JPEG, PNG, GIF, WebP, AVIF, SVG, BMP, TIFF, ICO",
     "check_html_structure": "HTML структура (Hn, P)",
     "check_heading_duplicates": "Дубли H1/H2/H3",
     "follow_redirects_for_checks": "Проверять конечные URL после редиректов",
